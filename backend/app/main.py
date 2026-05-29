@@ -73,5 +73,7 @@ async def health() -> dict:
 
 
 # ---- 路由注册（随各 Phase 增加）----
-# from app.api import stocks, transactions, journals, analytics, ai
-# app.include_router(stocks.router, prefix=settings.api_prefix)
+from app.api import admin, stocks  # noqa: E402
+
+app.include_router(stocks.router, prefix=settings.api_prefix)
+app.include_router(admin.router, prefix=settings.api_prefix)
