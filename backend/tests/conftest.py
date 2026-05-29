@@ -43,3 +43,13 @@ def client_fixture(session: Session) -> Iterator[TestClient]:
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def _clear_holdings_cache() -> Iterator[None]:
+    """每个测试前后清空进程内持仓缓存，避免跨测试串味。"""
+    from app.services.analysis import pnl as pnl_service
+
+    pnl_service.invalidate_holdings_cache()
+    yield
+    pnl_service.invalidate_holdings_cache()
