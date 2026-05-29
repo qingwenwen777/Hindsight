@@ -97,6 +97,7 @@ async def health() -> dict:
 # ---- 路由注册（随各 Phase 增加）----
 from app.api import (  # noqa: E402
     admin,
+    ai,
     benchmark,
     cash,
     corporate_actions,
@@ -117,4 +118,5 @@ app.include_router(returns.router, prefix=settings.api_prefix)
 app.include_router(corporate_actions.router, prefix=settings.api_prefix)
 app.include_router(benchmark.router, prefix=settings.api_prefix)
 app.include_router(exposure.router, prefix=settings.api_prefix)
+app.include_router(ai.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
