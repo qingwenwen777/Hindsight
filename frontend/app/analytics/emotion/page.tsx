@@ -1,0 +1,151 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+import { EMOTIONS } from "@/components/forms/emotion-picker";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/lib/api/client";
+
+interface EmotionRow {
+  emotion: string;
+  samples: number;
+  wins: number;
+  win_rate: number;
+  win_rate_pct: number;
+  avg_return_pct: string | null;
+  profit_loss_ratio: number | null;
+}
+
+interface AuditData {
+  by_emotion: EmotionRow[];
+  conclusions: string[];
+}
+
+function emotionLabel(value: string) {
+  const e = EMOTIONS.find((x) => x.value === value);
+  return e ? `${e.emoji} ${e.label}` : value;
+}
+
+export default function EmotionAuditPage() {
+  const { data, isLoading } = useQuery({
+    queryKey: ["emotion-audit"],
+    queryFn: async () => (await api.get<AuditData>("/reports/emotion-audit")).data,
+  });
+
+  const chartData = (data?.by_emotion ?? []).map((r) => ({
+    name: emotionLabel(r.emotion),
+    winRate: r.win_rate_pct,
+    samples: r.samples,
+  }));
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-h1 text-primary">情绪审计</h1>
+        <p className="text-small text-secondary">
+          不同情绪下的买入交易后续表现（30 天回报为正记为胜）。
+        </p>
+      </div>
+
+      {/* 结论文案 */}
+      {data?.conclusions && data.conclusions.length > 0 && (
+        <div className="space-y-1 rounded-md border border-warn/40 bg-warn/10 p-3">
+          {data.conclusions.map((c, i) => (
+            <p key={i} className="text-small text-warn">
+              {c}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>各情绪胜率对比</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="h-64 animate-pulse rounded-md bg-elevated" />
+          ) : chartData.length === 0 ? (
+            <div className="flex h-64 items-center justify-center text-secondary">
+              暂无足够数据（需要带情绪标记的交易 + 后续行情）
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
+                <YAxis
+                  tick={{ fill: "var(--text-secondary)", fontSize: 12 }}
+                  domain={[0, 100]}
+                  unit="%"
+                />
+                <Tooltip
+                  formatter={(v: number) => `${v}%`}
+                  contentStyle={{
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border-subtle)",
+                    borderRadius: 6,
+                    color: "var(--text-primary)",
+                    fontSize: 12,
+                  }}
+                />
+                <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, i) => (
+                    <Cell
+                      key={i}
+                      fill={entry.winRate >= 50 ? "var(--color-green)" : "var(--color-red)"}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>明细</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <table className="w-full text-small">
+            <thead>
+              <tr className="border-b border-border-subtle text-caption text-secondary">
+                <th className="px-2 py-2 text-left">情绪</th>
+                <th className="px-2 py-2 text-right">样本</th>
+                <th className="px-2 py-2 text-right">胜率</th>
+                <th className="px-2 py-2 text-right">平均回报</th>
+                <th className="px-2 py-2 text-right">盈亏比</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data?.by_emotion ?? []).map((r) => (
+                <tr key={r.emotion} className="border-b border-border-subtle/50">
+                  <td className="px-2 py-2 text-primary">{emotionLabel(r.emotion)}</td>
+                  <td className="tnum px-2 py-2 text-right text-secondary">{r.samples}</td>
+                  <td className="tnum px-2 py-2 text-right text-primary">{r.win_rate_pct}%</td>
+                  <td className="tnum px-2 py-2 text-right text-secondary">
+                    {r.avg_return_pct ? `${Number(r.avg_return_pct).toFixed(2)}%` : "—"}
+                  </td>
+                  <td className="tnum px-2 py-2 text-right text-secondary">
+                    {r.profit_loss_ratio != null ? r.profit_loss_ratio.toFixed(2) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
