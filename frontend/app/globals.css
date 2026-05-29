@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design Tokens —— 设计文档 8.2 节。
+ * 深色为默认主题；.light 切换浅色。
+ * 涨跌色通过 [data-color-scheme] 在 asia / western 间交换语义映射。
+ */
+
+:root,
+.dark {
+  /* 背景层级 */
+  --bg-base: #0b0e11;
+  --bg-surface: #131722;
+  --bg-elevated: #1c2230;
+  /* 边框 */
+  --border-subtle: #2a2e39;
+  /* 文字层级 */
+  --text-primary: #d1d4dc;
+  --text-secondary: #787b86;
+  --text-muted: #4a4e5a;
+  /* 强调色 */
+  --accent: #2962ff;
+  --accent-foreground: #ffffff;
+  /* 告警 / 危险 */
+  --warn: #ff9800;
+  --danger: #f23645;
+
+  /* 涨跌原始色（不直接用，经 color-scheme 映射到 --up/--down） */
+  --color-green: #26a69a;
+  --color-red: #ef5350;
+}
+
+.light {
+  --bg-base: #ffffff;
+  --bg-surface: #f8f9fd;
+  --bg-elevated: #ffffff;
+  --border-subtle: #e0e3eb;
+  --text-primary: #131722;
+  --text-secondary: #787b86;
+  --text-muted: #b2b5be;
+  --accent: #2962ff;
+  --accent-foreground: #ffffff;
+  --warn: #ff9800;
+  --danger: #f23645;
+  --color-green: #26a69a;
+  --color-red: #ef5350;
+}
+
+/* 涨跌色语义映射：
+ * western（美/港/日习惯）：涨=绿，跌=红
+ * asia（A 股习惯）：涨=红，跌=绿
+ * 组件内只引用 --up / --down，禁止硬编码红绿。 */
+[data-color-scheme="western"] {
+  --up: var(--color-green);
+  --down: var(--color-red);
+}
+[data-color-scheme="asia"] {
+  --up: var(--color-red);
+  --down: var(--color-green);
+}
+/* 缺省（未设置 data 属性时）走 western */
+:root {
+  --up: var(--color-green);
+  --down: var(--color-red);
+}
+
+@layer base {
+  * {
+    border-color: var(--border-subtle);
+  }
+  html {
+    color-scheme: dark;
+  }
+  body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  /* 数字一律等宽对齐 */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-family: var(--font-mono, "JetBrains Mono"), ui-monospace, monospace;
+  }
+}
+
+/* 自定义滚动条（深色克制风格） */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
