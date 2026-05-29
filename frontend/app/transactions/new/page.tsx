@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { ConcentrationAlert } from "@/components/forms/concentration-alert";
 import { ConfidenceSlider } from "@/components/forms/confidence-slider";
 import { CooldownButton } from "@/components/forms/cooldown-button";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
+import { useCooldownCheck } from "@/lib/hooks/use-biases";
 import { useCreateTransaction, useStockSearch } from "@/lib/hooks/use-portfolio";
 import type { Stock, TransactionCreate } from "@/lib/api/types";
 
@@ -21,9 +23,13 @@ const MIN_THESIS = 100;
 export default function NewTransactionPage() {
   const router = useRouter();
   const createTx = useCreateTransaction();
+  const cooldownCheck = useCooldownCheck();
 
   const [step, setStep] = useState<1 | 2>(1);
   const [error, setError] = useState<string | null>(null);
+  const [defenseWarnings, setDefenseWarnings] = useState<string[]>([]);
+  const [cooldownSeconds, setCooldownSeconds] = useState(30);
+  const [requireAiConfirm, setRequireAiConfirm] = useState(false);
 
   // Step 1 — 交易信息
   const [stock, setStock] = useState<Stock | null>(null);
@@ -211,8 +217,30 @@ export default function NewTransactionPage() {
             </div>
 
             <div className="flex justify-end">
-              <Button disabled={!step1Valid} onClick={() => setStep(2)}>
-                下一步：决策日志
+              <Button
+                disabled={!step1Valid || cooldownCheck.isPending}
+                onClick={() => {
+                  if (!stock) return;
+                  // 录入前防御检测
+                  cooldownCheck.mutate(
+                    { stock_id: stock.id, type: side, sell_date: tradeDate },
+                    {
+                      onSuccess: (res) => {
+                        setDefenseWarnings(res.warnings || []);
+                        setCooldownSeconds(res.cooldown_seconds || 30);
+                        setRequireAiConfirm(res.require_ai_confirm || false);
+                        setStep(2);
+                      },
+                      onError: () => {
+                        // 检测失败不阻断录入，用默认冷静期
+                        setCooldownSeconds(30);
+                        setStep(2);
+                      },
+                    },
+                  );
+                }}
+              >
+                {cooldownCheck.isPending ? "检测中…" : "下一步：决策日志"}
               </Button>
             </div>
           </CardContent>
@@ -225,6 +253,13 @@ export default function NewTransactionPage() {
             <CardTitle>决策日志（全部必填核心字段）</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 防御告警（复仇交易 / 持有时间） */}
+            <ConcentrationAlert warnings={defenseWarnings} />
+            {requireAiConfirm && (
+              <p className="text-small text-warn">
+                检测到疑似复仇交易，冷静期已延长至 {Math.round(cooldownSeconds / 60)} 分钟，建议先用 AI 复盘确认。
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>决策类型</Label>
@@ -317,7 +352,7 @@ export default function NewTransactionPage() {
                 上一步
               </Button>
               <CooldownButton
-                seconds={30}
+                seconds={cooldownSeconds}
                 disabled={!step2Valid}
                 loading={createTx.isPending}
                 onConfirm={submit}
