@@ -18,7 +18,6 @@ dependencies = [
     "numpy>=1.26",
     "akshare>=1.13",
     "yfinance>=0.2",
-    "pandas-ta>=0.3.14b",
     "apscheduler>=3.10",
     "httpx>=0.27",
     "anthropic>=0.30",

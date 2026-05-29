@@ -25,6 +25,6 @@
 
 ## 依赖兼容
 
-- **pandas-ta 与 numpy 2.x / pandas 3.x 不兼容**（Step 3.1 技术指标）
+- **pandas-ta 与 numpy 2.x / pandas 3.x 不兼容**（Step 3.1 技术指标）— ✅ 已解决
   - `pandas-ta 0.3.x` 仍 `from numpy import NaN`（numpy 2.0 已移除）。
-  - 计划：Step 3.1 实现时自行实现所需指标（MA/EMA/MACD/RSI/布林带/KDJ），不依赖 pandas-ta，避免版本地狱。
+  - 处置：Step 3.1 已自实现 MA/EMA/MACD/RSI/布林带/KDJ（`services/analysis/indicators.py`），不依赖 pandas-ta，避免版本地狱。已从 pyproject 依赖移除 pandas-ta。

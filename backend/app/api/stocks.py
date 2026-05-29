@@ -113,3 +113,35 @@ def get_prices(
         for p in rows
     ]
     return ok(data, meta=Meta(total=len(data)))
+
+
+@router.get("/{stock_id}/indicators", summary="技术指标")
+def get_indicators(
+    stock_id: int,
+    type: str | None = Query(None, description="逗号分隔：MA,EMA,MACD,RSI,BOLL,KDJ"),
+    start: date | None = Query(None),
+    end: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> dict:
+    """计算某股票的技术指标（基于已同步的日线）。"""
+    from app.services.analysis.indicators import compute_indicators
+
+    if not session.get(Stock, stock_id):
+        raise HTTPException(status_code=404, detail="股票不存在")
+    stmt = select(Price).where(Price.stock_id == stock_id)
+    if start:
+        stmt = stmt.where(Price.date >= start)
+    if end:
+        stmt = stmt.where(Price.date <= end)
+    stmt = stmt.order_by(Price.date)
+    rows = list(session.exec(stmt).all())
+    if not rows:
+        return ok({"dates": [], "indicators": {}})
+
+    dates = [p.date.isoformat() for p in rows]
+    close = [float(p.close) for p in rows]
+    high = [float(p.high) if p.high is not None else float(p.close) for p in rows]
+    low = [float(p.low) if p.low is not None else float(p.close) for p in rows]
+    types = [t.strip() for t in type.split(",")] if type else None
+    indicators = compute_indicators(close, high, low, types)
+    return ok({"dates": dates, "indicators": indicators})
