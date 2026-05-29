@@ -101,6 +101,13 @@ def _upsert_bars(session: Session, stock_id: int, bars: list[PriceBar]) -> tuple
         else:
             inserted += 1
     session.commit()
+    # 写入后失效 parquet 缓存
+    try:
+        from app.services.analysis.price_cache import invalidate_price_cache
+
+        invalidate_price_cache(stock_id)
+    except Exception:  # noqa: BLE001  缓存失效失败不影响同步
+        pass
     return inserted, updated, skipped
 
 

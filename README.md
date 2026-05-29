@@ -113,3 +113,14 @@ python -m scripts.backup --keep 30
 ### API 文档
 
 - 启动后访问 `http://localhost:8000/docs`（Swagger UI）。
+
+### 性能实测
+
+在 50 只持仓 × 各 20 笔交易 × 250 日行情的合成数据下（本地 SQLite，TestClient 测）：
+
+| 端点 | 首次 | 缓存命中 |
+|---|---|---|
+| `/portfolio/holdings` | ~49ms | ~24ms |
+| `/portfolio/summary` | ~121ms | — |
+
+均远低于设计目标（持仓查询 < 500ms、仪表盘 < 2s）。行情历史查询用 parquet 缓存（`data/cache/`），同步写入自动失效。
