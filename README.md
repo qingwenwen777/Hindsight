@@ -72,8 +72,11 @@ npm run dev
 
 ## 环境注意事项
 
-- 行情数据源：AKShare（A 股/港股）、yfinance（美股/日股）。AKShare 首次使用可能需要额外依赖，详见同步模块说明。
-- AI 功能需要 `ANTHROPIC_API_KEY`，缺失时相关功能优雅降级。
+- 行情数据源：AKShare（A 股/港股）、yfinance（美股/日股）。
+- **AKShare 安装坑**：AKShare 依赖较重（lxml、html5lib 等），在 Windows + Python 3.13 上首次 `pip install akshare` 可能较慢或需要 C++ 构建工具。建议单独安装并预留时间；若仅做美股验证可只装 yfinance。
+- **pandas/numpy 版本**：yfinance 会拉入 pandas 3.x / numpy 2.x。`pandas-ta 0.3.x` 对 numpy 2.x 有兼容问题（`from numpy import NaN` 已移除），技术指标模块（Step 3.1）实现时会做适配或改用替代实现。
+- AI 功能需要 `ANTHROPIC_API_KEY`，缺失时相关功能优雅降级（spike 脚本会跳过 AI 部分）。
+- 连通性自检：`python -m scripts.spike`（在 backend 目录、激活 venv 后运行）。
 
 ---
 
