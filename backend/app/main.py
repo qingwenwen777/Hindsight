@@ -100,6 +100,7 @@ from app.api import (  # noqa: E402
     benchmark,
     cash,
     corporate_actions,
+    exposure,
     journals,
     portfolio,
     returns,
@@ -115,4 +116,5 @@ app.include_router(cash.router, prefix=settings.api_prefix)
 app.include_router(returns.router, prefix=settings.api_prefix)
 app.include_router(corporate_actions.router, prefix=settings.api_prefix)
 app.include_router(benchmark.router, prefix=settings.api_prefix)
+app.include_router(exposure.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
