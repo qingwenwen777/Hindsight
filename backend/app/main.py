@@ -11,11 +11,15 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import settings
+from app.core.journal_lock import JournalLockedError, install_journal_lock_guard
 from app.core.response import ok
 from app.logging_config import configure_logging, get_logger
 
 configure_logging(debug=settings.debug)
 log = get_logger(__name__)
+
+# 注册日志锁定守卫（拦截对已锁定 journal 的 UPDATE）
+install_journal_lock_guard()
 
 
 @asynccontextmanager
@@ -66,6 +70,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+@app.exception_handler(JournalLockedError)
+async def journal_locked_handler(request: Request, exc: JournalLockedError):  # noqa: ANN201
+    """已锁定日志被修改 → 403。"""
+    return JSONResponse(
+        status_code=403,
+        content={"code": 403, "message": str(exc), "data": None, "meta": None},
+    )
+
+
 @app.get("/health", tags=["system"])
 async def health() -> dict:
     """健康检查接口，返回统一响应壳。"""
@@ -73,7 +86,9 @@ async def health() -> dict:
 
 
 # ---- 路由注册（随各 Phase 增加）----
-from app.api import admin, stocks  # noqa: E402
+from app.api import admin, journals, stocks, transactions  # noqa: E402
 
 app.include_router(stocks.router, prefix=settings.api_prefix)
+app.include_router(transactions.router, prefix=settings.api_prefix)
+app.include_router(journals.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
