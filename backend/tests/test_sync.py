@@ -53,11 +53,11 @@ def test_upsert_idempotent(session: Session, monkeypatch) -> None:  # noqa: ANN0
     session.commit()
     session.refresh(stock)
 
-    # 用假数据替换网络拉取
-    monkeypatch.setattr(sync_service, "fetch_cn_daily", lambda *a, **k: _fake_bars())
+    # 用假数据替换数据源分派
+    monkeypatch.setattr(sync_service, "_fetch_via_source", lambda *a, **k: _fake_bars())
 
     # 第一次同步：2 行 insert
-    r1 = sync_service.sync_stock_prices(session, stock, full=True)
+    r1 = sync_service.sync_stock_prices(session, stock, full=True, write_log=False)
     assert r1.ok
     assert r1.inserted == 2
     assert r1.updated == 0
@@ -66,7 +66,7 @@ def test_upsert_idempotent(session: Session, monkeypatch) -> None:  # noqa: ANN0
     assert count1 == 2
 
     # 第二次同步：相同数据 → 2 行 update，仍是 2 行总数
-    r2 = sync_service.sync_stock_prices(session, stock, full=True)
+    r2 = sync_service.sync_stock_prices(session, stock, full=True, write_log=False)
     assert r2.inserted == 0
     assert r2.updated == 2
 
@@ -79,12 +79,47 @@ def test_upsert_idempotent(session: Session, monkeypatch) -> None:  # noqa: ANN0
     assert p.close == Decimal("107")
 
 
-def test_unsupported_market(session: Session) -> None:
-    """非 A 股市场在 Step 1.3 返回不支持。"""
+def test_fallback_chain(session: Session, monkeypatch) -> None:  # noqa: ANN001
+    """A 股首选 akshare 失败时回退 yfinance。"""
+    from app.services.data_sync import sync_service as svc
+
+    stock = Stock(symbol="600519", market="CN", name="贵州茅台", currency="CNY")
+    session.add(stock)
+    session.commit()
+    session.refresh(stock)
+
+    # akshare 抛不可用，yfinance 返回数据
+    def _fake_dispatch(source, stk, start):  # noqa: ANN001
+        from app.services.data_sync.akshare_client import AkShareUnavailable
+
+        if source == "akshare":
+            raise AkShareUnavailable("模拟 akshare 不可用")
+        return _fake_bars()
+
+    monkeypatch.setattr(svc, "_fetch_via_source", _fake_dispatch)
+    r = svc.sync_stock_prices(session, stock, full=True, write_log=False)
+    assert r.ok
+    assert r.source == "yfinance"
+    assert r.inserted == 2
+
+
+def test_all_sources_fail(session: Session, monkeypatch) -> None:  # noqa: ANN001
+    """所有数据源失败 → 标记失败。"""
+    from app.services.data_sync import sync_service as svc
+    from app.services.data_sync.akshare_client import AkShareUnavailable
+    from app.services.data_sync.yfinance_client import YFinanceUnavailable
+
     stock = Stock(symbol="AAPL", market="US", name="Apple", currency="USD")
     session.add(stock)
     session.commit()
     session.refresh(stock)
-    r = sync_service.sync_stock_prices(session, stock)
+
+    def _all_fail(source, stk, start):  # noqa: ANN001
+        if source == "akshare":
+            raise AkShareUnavailable("no")
+        raise YFinanceUnavailable("no")
+
+    monkeypatch.setattr(svc, "_fetch_via_source", _all_fail)
+    r = svc.sync_stock_prices(session, stock, full=True, write_log=False)
     assert not r.ok
-    assert "暂不支持" in r.message
+    assert "所有数据源失败" in r.message

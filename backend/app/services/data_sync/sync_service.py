@@ -9,7 +9,9 @@ from sqlmodel import Session, select
 
 from app.logging_config import get_logger
 from app.models.stock import Price, Stock
+from app.models.sync_log import SyncLog
 from app.services.data_sync.akshare_client import AkShareUnavailable, fetch_cn_daily
+from app.services.data_sync.yfinance_client import YFinanceUnavailable, fetch_yf_daily
 from app.services.data_sync.base import (
     PriceBar,
     PriceValidationError,
@@ -19,6 +21,29 @@ from app.services.data_sync.base import (
 )
 
 log = get_logger(__name__)
+
+# 各市场容错优先级链路（设计文档 5.1）。
+# 每个 source 是 (名称, 拉取函数)；按顺序尝试，成功即止。
+_FETCHERS: dict[str, list[str]] = {
+    "CN": ["akshare", "yfinance"],
+    "HK": ["akshare", "yfinance"],
+    "US": ["yfinance", "akshare"],
+    "JP": ["yfinance"],
+}
+
+
+def _fetch_via_source(
+    source: str, stock: Stock, start: date | None
+) -> list[PriceBar]:
+    """按 source 名称分派到对应客户端。"""
+    if source == "akshare":
+        if stock.market == "CN":
+            return fetch_cn_daily(stock.symbol, start=start)
+        # AKShare 也能拉港股/美股，但接口不同；当前仅 A 股走 akshare，其余抛不可用触发回退
+        raise AkShareUnavailable(f"akshare 暂未实现 {stock.market} 拉取，回退下一源")
+    if source == "yfinance":
+        return fetch_yf_daily(stock.symbol, stock.market, start=start)
+    raise ValueError(f"未知数据源：{source}")
 
 
 def _latest_price_date(session: Session, stock_id: int) -> date | None:
@@ -85,16 +110,21 @@ def sync_stock_prices(
     *,
     full: bool = False,
     lookback_buffer_days: int = 5,
+    write_log: bool = True,
 ) -> SyncResult:
-    """同步单只股票日线（目前仅 A 股 / AKShare）。
+    """同步单只股票日线，按市场容错优先级依次尝试数据源。
 
     - 增量：从已有最新日期 - buffer 起拉，覆盖可能的复权回填。
     - full=True：全量重拉。
+    - 按 _FETCHERS[market] 的顺序尝试，成功即止；全部失败标记失败。
     """
-    result = SyncResult(symbol=stock.symbol, market=stock.market, source="akshare")
-    if stock.market != "CN":
+    result = SyncResult(symbol=stock.symbol, market=stock.market)
+    sources = _FETCHERS.get(stock.market.upper())
+    if not sources:
         result.ok = False
-        result.message = f"市场 {stock.market} 暂不支持（Step 1.3 仅 A 股）"
+        result.message = f"市场 {stock.market} 无可用数据源"
+        if write_log:
+            _write_sync_log(session, result)
         return result
 
     start: date | None = None
@@ -103,16 +133,30 @@ def sync_stock_prices(
         if latest is not None:
             start = latest - timedelta(days=lookback_buffer_days)
 
-    try:
-        bars = fetch_cn_daily(stock.symbol, start=start)
-    except AkShareUnavailable as e:
+    bars: list[PriceBar] | None = None
+    errors: list[str] = []
+    for source in sources:
+        try:
+            bars = _fetch_via_source(source, stock, start)
+            result.source = source
+            break
+        except (AkShareUnavailable, YFinanceUnavailable) as e:
+            errors.append(f"{source}: {e}")
+            log.warning("sync.source_failed", symbol=stock.symbol, source=source, error=str(e))
+            continue
+
+    if bars is None:
         result.ok = False
-        result.message = str(e)
-        log.warning("sync.source_unavailable", symbol=stock.symbol, error=str(e))
+        result.message = "所有数据源失败：" + " | ".join(errors)
+        log.error("sync.all_sources_failed", symbol=stock.symbol, errors=errors)
+        if write_log:
+            _write_sync_log(session, result)
         return result
 
     if not bars:
         result.message = "无新数据"
+        if write_log:
+            _write_sync_log(session, result)
         return result
 
     inserted, updated, skipped = _upsert_bars(session, stock.id, bars)  # type: ignore[arg-type]
@@ -123,11 +167,31 @@ def sync_stock_prices(
     log.info(
         "sync.stock_done",
         symbol=stock.symbol,
+        source=result.source,
         inserted=inserted,
         updated=updated,
         skipped=skipped,
     )
+    if write_log:
+        _write_sync_log(session, result)
     return result
+
+
+def _write_sync_log(session: Session, result: SyncResult) -> None:
+    """把同步结果写入 sync_logs 表。"""
+    session.add(
+        SyncLog(
+            market=result.market,
+            symbol=result.symbol,
+            source=result.source or None,
+            ok=result.ok,
+            inserted=result.inserted,
+            updated=result.updated,
+            skipped=result.skipped,
+            message=result.message,
+        )
+    )
+    session.commit()
 
 
 def sync_market_prices(session: Session, market: str, *, full: bool = False) -> SyncReport:

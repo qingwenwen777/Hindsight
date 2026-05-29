@@ -26,7 +26,16 @@ install_journal_lock_guard()
 async def lifespan(app: FastAPI):  # noqa: ANN201
     """应用生命周期：启动时记录日志（建表交给 Alembic）。"""
     log.info("app.startup", app_name=settings.app_name, base_currency=settings.base_currency)
-    yield
+    if settings.enable_scheduler:
+        from app.services.data_sync.scheduler import shutdown_scheduler, start_scheduler
+
+        start_scheduler()
+        try:
+            yield
+        finally:
+            shutdown_scheduler()
+    else:
+        yield
     log.info("app.shutdown")
 
 

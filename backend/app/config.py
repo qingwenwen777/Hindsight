@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # ---- 时区 ----
     display_timezone: str = "Asia/Tokyo"
 
+    # ---- 调度 ----
+    enable_scheduler: bool = False
+
     # ---- CORS（前端开发地址）----
     cors_origins: list[str] = [
         "http://localhost:3000",

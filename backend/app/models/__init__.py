@@ -7,6 +7,7 @@ from app.models.corporate_action import CorporateAction
 from app.models.fee_rule import FeeRule
 from app.models.journal import Journal, Review
 from app.models.stock import Price, Stock
+from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
 
 __all__ = [
@@ -17,4 +18,5 @@ __all__ = [
     "Journal",
     "Review",
     "FeeRule",
+    "SyncLog",
 ]

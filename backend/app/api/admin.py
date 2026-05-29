@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.core.response import ok
+from app.core.response import Meta, ok
 from app.database import get_session
+from app.models.sync_log import SyncLog
 from app.services.data_sync.sync_service import sync_market_prices
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -42,3 +43,57 @@ def sync_prices(
             ],
         }
     )
+
+
+@router.get("/sync/logs", summary="同步日志")
+def sync_logs(
+    limit: int = Query(50, le=500),
+    market: str | None = Query(None),
+    session: Session = Depends(get_session),
+) -> dict:
+    """查询最近的同步日志。"""
+    stmt = select(SyncLog)
+    if market:
+        stmt = stmt.where(SyncLog.market == market.upper())
+    stmt = stmt.order_by(SyncLog.created_at.desc()).limit(limit)
+    rows = list(session.exec(stmt).all())
+    data = [
+        {
+            "id": r.id,
+            "market": r.market,
+            "symbol": r.symbol,
+            "source": r.source,
+            "ok": r.ok,
+            "inserted": r.inserted,
+            "updated": r.updated,
+            "skipped": r.skipped,
+            "message": r.message,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ]
+    return ok(data, meta=Meta(total=len(data)))
+
+
+@router.get("/sync/status", summary="同步状态汇总")
+def sync_status(session: Session = Depends(get_session)) -> dict:
+    """各市场最近一次同步状态。"""
+    out: dict[str, dict] = {}
+    for market in ("CN", "US", "HK", "JP"):
+        last = session.exec(
+            select(SyncLog)
+            .where(SyncLog.market == market)
+            .order_by(SyncLog.created_at.desc())
+            .limit(1)
+        ).first()
+        out[market] = (
+            {
+                "ok": last.ok,
+                "source": last.source,
+                "message": last.message,
+                "at": last.created_at.isoformat() if last.created_at else None,
+            }
+            if last
+            else None
+        )
+    return ok(out)
