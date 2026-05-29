@@ -83,3 +83,33 @@ npm run dev
 ## 开发进度
 
 按 `docs/build-prompt-for-opus.md` 路线图分 Phase 推进，详见各阶段提交记录。
+
+---
+
+## 运维
+
+### 数据库备份
+
+```powershell
+cd backend
+.venv\Scripts\Activate.ps1
+python -m scripts.backup --keep 30
+```
+
+- 输出到 `data/backups/stock_<时间戳>.db.gz`（一致性快照 + gzip 压缩，自动清理超过保留天数的旧备份）。
+- 设置环境变量 `BACKUP_PASSWORD` 后输出加密文件 `.gz.enc`。
+- 建议用系统计划任务（Windows 任务计划程序 / cron）每日 02:00 触发。
+
+### 健康检查
+
+- 后端 `GET /health` 返回 `{code:0, data:{status:"healthy"}}`，docker-compose 已配置 healthcheck。
+
+### 行情同步
+
+- 手动：`POST /api/v1/admin/sync/prices?market=CN`（CN/US/HK/JP）。
+- 自动：设置 `ENABLE_SCHEDULER=true` 启用 APScheduler（按 JST 时间表）。
+- 汇率：`POST /api/v1/admin/sync/fx`。
+
+### API 文档
+
+- 启动后访问 `http://localhost:8000/docs`（Swagger UI）。

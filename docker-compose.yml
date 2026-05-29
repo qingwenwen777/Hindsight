@@ -16,6 +16,8 @@ services:
       - BASE_CURRENCY=JPY
       - DATABASE_URL=sqlite:////app/data/stock.db
       - TZ=Asia/Tokyo
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+      - BACKUP_PASSWORD=${BACKUP_PASSWORD:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status==200 else sys.exit(1)"]

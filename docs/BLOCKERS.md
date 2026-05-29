@@ -28,3 +28,12 @@
 - **pandas-ta 与 numpy 2.x / pandas 3.x 不兼容**（Step 3.1 技术指标）— ✅ 已解决
   - `pandas-ta 0.3.x` 仍 `from numpy import NaN`（numpy 2.0 已移除）。
   - 处置：Step 3.1 已自实现 MA/EMA/MACD/RSI/布林带/KDJ（`services/analysis/indicators.py`），不依赖 pandas-ta，避免版本地狱。已从 pyproject 依赖移除 pandas-ta。
+
+
+## 部署验证
+
+- **[Step 6.3] `docker compose up -d` 未在本环境实跑**
+  - 已提供 `backend/Dockerfile`、`frontend/Dockerfile`（Next standalone）、完整 `docker-compose.yml`（healthcheck/卷/环境变量齐全）。
+  - 本环境无 Docker daemon，未实际构建镜像；后端 `pytest` 全绿、前端 `npm run build` 全绿，启动命令（alembic upgrade + uvicorn / node server.js）已在 Dockerfile 固化。
+  - 你需要做：在装有 Docker 的机器上 `docker compose up -d` 验证；首次构建后端镜像会安装 akshare/scipy 等较重依赖，耗时数分钟属正常。
+- 备份脚本 `python -m scripts.backup` 已本地实跑通过（生成 .gz 与 .gz.enc）。
