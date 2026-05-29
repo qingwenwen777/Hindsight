@@ -172,3 +172,60 @@ def chat(payload: ChatRequest, session: Session = Depends(get_session)) -> dict:
             "completion_tokens": result.completion_tokens,
         }
     )
+
+
+@router.post("/quarterly-review", summary="AI 季度模式分析")
+def quarterly_review(
+    year: int = Query(...),
+    quarter: int = Query(..., ge=1, le=4),
+    session: Session = Depends(get_session),
+) -> dict:
+    """对某季度的亏损交易做失败模式识别，返回 AI 模式分析 + 支撑交易列表。"""
+    from datetime import date
+
+    from app.services.analysis.reports import build_failure_library
+
+    start_month = (quarter - 1) * 3 + 1
+    start = date(year, start_month, 1)
+    end = date(year + 1, 1, 1) if start_month + 3 > 12 else date(year, start_month + 3, 1)
+
+    summary = context_builder.build_failure_pattern_context(session, start, end)
+    user_content = prompts.render_failure_pattern(summary)
+
+    try:
+        result = ai_client.analyze(
+            session,
+            prompt_type="QUARTERLY_REVIEW",
+            system_prompt=prompts.SYSTEM_BASE,
+            user_content=user_content,
+            target_type="PORTFOLIO",
+            target_id=None,
+            max_tokens=1500,
+        )
+    except BudgetExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+
+    # 支撑交易（该季度内的失败案例）
+    all_failures = build_failure_library(session)
+    supporting = [
+        {
+            "transaction_id": c.transaction_id,
+            "symbol": c.symbol,
+            "trade_date": c.trade_date,
+            "return_30d_pct": to_db_str(c.return_30d),
+        }
+        for c in all_failures
+        if start.isoformat() <= c.trade_date < end.isoformat()
+    ]
+
+    return ok(
+        {
+            "period": f"{year}Q{quarter}",
+            "response": result.response,
+            "model": result.model,
+            "cached": result.cached,
+            "degraded": result.degraded,
+            "cost_jpy": to_db_str(result.cost_jpy),
+            "supporting_transactions": supporting,
+        }
+    )
