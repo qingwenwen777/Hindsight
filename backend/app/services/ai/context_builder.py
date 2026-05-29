@@ -126,3 +126,47 @@ def build_failure_pattern_context(
     if not lines:
         return "（该区间无亏损 > {0}% 的买入交易）".format(loss_threshold_pct)
     return "\n".join(lines)
+
+
+def build_chat_context(session: Session, refs: list[tuple[str, int]]) -> str:
+    """组装对话引用上下文（持仓/交易/日志）。
+
+    refs: [(type, id)]，type ∈ {HOLDING, TRANSACTION, JOURNAL}。
+    持仓数字由 pnl 服务精确计算。
+    """
+    from app.services.analysis import pnl as pnl_service
+
+    parts: list[str] = []
+    for rtype, rid in refs:
+        rtype = rtype.upper()
+        if rtype in ("HOLDING", "STOCK"):
+            stock = session.get(Stock, rid)
+            if not stock:
+                continue
+            holding = pnl_service.compute_holding(session, rid, use_cache=False)
+            parts.append(
+                f"[持仓] {stock.name}({stock.symbol}) "
+                f"持股 {holding.shares} 成本基础 {holding.cost_basis} "
+                f"已实现盈亏 {holding.realized_pnl}"
+            )
+        elif rtype == "TRANSACTION":
+            tx = session.get(Transaction, rid)
+            if not tx:
+                continue
+            stock = session.get(Stock, tx.stock_id)
+            parts.append(
+                f"[交易] tx#{tx.id} {stock.symbol} {tx.type} "
+                f"{tx.quantity}@{tx.price}{tx.currency} @{tx.trade_date}"
+            )
+        elif rtype == "JOURNAL":
+            j = session.get(Journal, rid)
+            if not j:
+                continue
+            stock = session.get(Stock, j.stock_id)
+            parts.append(
+                f"[日志] journal#{j.id} {stock.symbol} {j.decision_type} "
+                f"情绪={j.emotion or '—'} 信心={j.confidence or '—'} 逻辑：{j.thesis}"
+            )
+    if not parts:
+        return "（用户未选择具体上下文）"
+    return "\n".join(parts)

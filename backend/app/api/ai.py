@@ -26,6 +26,18 @@ class AnalyzeRequest(BaseModel):
     end: date | None = None
 
 
+class ChatContextRef(BaseModel):
+    """对话引用的上下文项。"""
+
+    type: str  # HOLDING / TRANSACTION / JOURNAL
+    id: int
+
+
+class ChatRequest(BaseModel):
+    message: str
+    context_refs: list[ChatContextRef] = []
+
+
 @router.post("/analyze", summary="AI 分析")
 def analyze(payload: AnalyzeRequest, session: Session = Depends(get_session)) -> dict:
     """对交易/日志/组合执行 AI 分析（带缓存与预算）。"""
@@ -123,5 +135,40 @@ def get_budget(session: Session = Depends(get_session)) -> dict:
             "usage_ratio": round(guard.usage_ratio(), 4),
             "is_close": guard.is_close(),
             "available": ai_client.is_available(),
+        }
+    )
+
+
+@router.post("/chat", summary="AI 对话")
+def chat(payload: ChatRequest, session: Session = Depends(get_session)) -> dict:
+    """基于选中的持仓/交易/日志上下文进行对话。"""
+    refs = [(r.type, r.id) for r in payload.context_refs]
+    context = context_builder.build_chat_context(session, refs)
+    user_content = (
+        f"## 可引用的数据（数字由系统精确计算）\n{context}\n\n"
+        f"## 用户问题\n{payload.message}"
+    )
+    try:
+        result = ai_client.analyze(
+            session,
+            prompt_type="CHAT",
+            system_prompt=prompts.SYSTEM_BASE,
+            user_content=user_content,
+            target_type="PORTFOLIO",
+            target_id=None,
+            max_tokens=1500,
+        )
+    except BudgetExceeded as e:
+        raise HTTPException(status_code=429, detail=str(e)) from e
+
+    return ok(
+        {
+            "response": result.response,
+            "model": result.model,
+            "cached": result.cached,
+            "degraded": result.degraded,
+            "cost_jpy": to_db_str(result.cost_jpy),
+            "prompt_tokens": result.prompt_tokens,
+            "completion_tokens": result.completion_tokens,
         }
     )
