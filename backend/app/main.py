@@ -1,0 +1,77 @@
+"""FastAPI 应用入口。"""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+
+from app.config import settings
+from app.core.response import ok
+from app.logging_config import configure_logging, get_logger
+
+configure_logging(debug=settings.debug)
+log = get_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ANN201
+    """应用生命周期：启动时记录日志（建表交给 Alembic）。"""
+    log.info("app.startup", app_name=settings.app_name, base_currency=settings.base_currency)
+    yield
+    log.info("app.shutdown")
+
+
+app = FastAPI(
+    title=settings.app_name,
+    version="0.1.0",
+    description="个人股票分析、记录与复盘平台 API",
+    lifespan=lifespan,
+)
+
+# CORS（前端开发地址）
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):  # noqa: ANN201
+    """把 HTTP 异常包装成统一响应壳。"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": exc.status_code, "message": str(exc.detail), "data": None, "meta": None},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):  # noqa: ANN201
+    """把请求校验错误（422）包装成统一响应壳。"""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "code": 422,
+            "message": "请求参数校验失败",
+            "data": {"errors": exc.errors()},
+            "meta": None,
+        },
+    )
+
+
+@app.get("/health", tags=["system"])
+async def health() -> dict:
+    """健康检查接口，返回统一响应壳。"""
+    return ok({"status": "healthy", "app": settings.app_name})
+
+
+# ---- 路由注册（随各 Phase 增加）----
+# from app.api import stocks, transactions, journals, analytics, ai
+# app.include_router(stocks.router, prefix=settings.api_prefix)
