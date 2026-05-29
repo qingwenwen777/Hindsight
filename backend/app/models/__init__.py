@@ -3,6 +3,7 @@
 集中导入所有模型，确保 SQLModel.metadata 注册全部表（供 Alembic 与建表使用）。
 """
 
+from app.models.cash import CashAccount, CashFlow
 from app.models.corporate_action import CorporateAction
 from app.models.fee_rule import FeeRule
 from app.models.fx_rate import FxRate
@@ -21,4 +22,6 @@ __all__ = [
     "FeeRule",
     "SyncLog",
     "FxRate",
+    "CashAccount",
+    "CashFlow",
 ]

@@ -51,6 +51,7 @@ class TransactionIn(BaseModel):
     tax: str | None = None
     other_fees: str | None = None
     broker: str | None = None
+    account_id: int | None = None  # 关联现金账户（提供则自动产生现金流）
     notes: str | None = None
     # 强制日志（缺失则 422）
     journal: JournalIn
@@ -156,6 +157,25 @@ def create_transaction(payload: TransactionIn, session: Session = Depends(get_se
     from app.services.analysis import pnl as pnl_service
 
     pnl_service.invalidate_holdings_cache(payload.stock_id)
+
+    # 4. 若指定现金账户，自动产生交易现金流
+    if payload.account_id is not None:
+        session.flush()  # 拿到 tx.id
+        from app.services.analysis import cash as cash_service
+
+        amount = quantity * price
+        total_fees = commission + tax + other_fees
+        cash_service.generate_trade_cash_flows(
+            session,
+            payload.account_id,
+            tx.id,  # type: ignore[arg-type]
+            payload.type,
+            amount,
+            total_fees,
+            payload.currency.upper(),
+            payload.trade_date,
+            commit=False,
+        )
 
     session.commit()
     session.refresh(tx)
