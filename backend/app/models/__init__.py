@@ -1,8 +1,20 @@
 """SQLModel 数据模型包。
 
-在此集中导入所有模型，确保 SQLModel.metadata 能注册全部表。
-模型将在 Phase 1 / Phase 2 逐步补充。
+集中导入所有模型，确保 SQLModel.metadata 注册全部表（供 Alembic 与建表使用）。
 """
 
-# 模型会在 Step 1.1 起逐步添加并在此导出。
-__all__: list[str] = []
+from app.models.corporate_action import CorporateAction
+from app.models.fee_rule import FeeRule
+from app.models.journal import Journal, Review
+from app.models.stock import Price, Stock
+from app.models.transaction import Transaction
+
+__all__ = [
+    "Stock",
+    "Price",
+    "Transaction",
+    "CorporateAction",
+    "Journal",
+    "Review",
+    "FeeRule",
+]
