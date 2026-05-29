@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
@@ -241,3 +241,63 @@ def delete_transaction(tx_id: int, session: Session = Depends(get_session)) -> d
     pnl_service.invalidate_holdings_cache(tx.stock_id)
     session.commit()
     return ok({"deleted": tx_id})
+
+
+@router.post("/import/preview", summary="CSV 导入预览")
+async def import_preview(
+    file: UploadFile = File(...),
+    broker: str | None = None,
+) -> dict:
+    """上传 CSV，自动检测格式并返回解析预览（不写库）。"""
+    from app.services.import_csv import parse_csv
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        content = raw.decode("gbk", errors="replace")
+    preview = parse_csv(content, broker=broker)
+    return ok(
+        {
+            "broker": preview.broker,
+            "columns": preview.columns,
+            "total": len(preview.rows),
+            "valid": len(preview.valid_rows),
+            "invalid": len(preview.invalid_rows),
+            "rows": [
+                {
+                    "symbol": r.symbol,
+                    "market": r.market,
+                    "type": r.type,
+                    "trade_date": r.trade_date,
+                    "quantity": r.quantity,
+                    "price": r.price,
+                    "currency": r.currency,
+                    "commission": r.commission,
+                    "tax": r.tax,
+                    "other_fees": r.other_fees,
+                    "error": r.error,
+                }
+                for r in preview.rows
+            ],
+        }
+    )
+
+
+@router.post("/import", summary="CSV 导入提交")
+async def import_commit(
+    file: UploadFile = File(...),
+    broker: str | None = None,
+    session: Session = Depends(get_session),
+) -> dict:
+    """上传 CSV 并批量写入有效行（每行建占位 journal，is_imported=true）。"""
+    from app.services.import_csv import commit_import, parse_csv
+
+    raw = await file.read()
+    try:
+        content = raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        content = raw.decode("gbk", errors="replace")
+    preview = parse_csv(content, broker=broker)
+    result = commit_import(session, preview)
+    return ok(result, message="导入完成")
