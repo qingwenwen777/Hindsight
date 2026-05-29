@@ -97,3 +97,19 @@ def sync_status(session: Session = Depends(get_session)) -> dict:
             else None
         )
     return ok(out)
+
+
+@router.post("/sync/fx", summary="同步汇率")
+def sync_fx(
+    days: int = Query(30, description="拉取最近 N 天"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """通过 yfinance 拉取汇率并写入 fx_rates。"""
+    from app.services.data_sync.fx_client import sync_fx_rates
+    from app.services.data_sync.yfinance_client import YFinanceUnavailable
+
+    try:
+        summary = sync_fx_rates(session, days=days)
+    except YFinanceUnavailable as e:
+        return ok({"ok": False, "message": str(e)})
+    return ok(summary)
