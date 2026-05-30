@@ -81,6 +81,15 @@ export function Sidebar() {
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed);
   const { data: insightUnread } = useInsightUnread();
 
+  // 找出与当前路径最匹配的导航项（最长前缀），避免父子路径同时高亮
+  // 例：/insights/screener 应只高亮"选股筛选"，不高亮"AI 日报"(/insights)
+  const allHrefs = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+  const activeHref = allHrefs.reduce((best, href) => {
+    const match = href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
+    if (!match) return best;
+    return href.length > best.length ? href : best;
+  }, "");
+
   return (
     <aside
       className={cn(
@@ -111,8 +120,7 @@ export function Sidebar() {
             {!collapsed && <div className="px-3 pb-1.5 label-caps">{t(group.titleKey)}</div>}
             <div className="grid gap-0.5">
               {group.items.map((item) => {
-                const active =
-                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                const active = item.href === activeHref;
                 const Icon = item.icon;
                 const label = t(item.labelKey);
                 const showDot = item.href === "/insights" && (insightUnread ?? 0) > 0;
