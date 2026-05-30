@@ -5,6 +5,7 @@
 
 from app.models.ai_insight import AiInsight
 from app.models.cash import CashAccount, CashFlow
+from app.models.conversation import Conversation, ConversationMessage
 from app.models.corporate_action import CorporateAction
 from app.models.fee_rule import FeeRule
 from app.models.financials import Financial
@@ -35,4 +36,6 @@ __all__ = [
     "ReportConfig",
     "ScreenerRule",
     "PriceAlert",
+    "Conversation",
+    "ConversationMessage",
 ]

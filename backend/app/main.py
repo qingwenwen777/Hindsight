@@ -102,6 +102,7 @@ from app.api import (  # noqa: E402
     benchmark,
     biases,
     cash,
+    conversations,
     corporate_actions,
     exposure,
     insights,
@@ -125,6 +126,7 @@ app.include_router(corporate_actions.router, prefix=settings.api_prefix)
 app.include_router(benchmark.router, prefix=settings.api_prefix)
 app.include_router(exposure.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
+app.include_router(conversations.router, prefix=settings.api_prefix)
 app.include_router(biases.router, prefix=settings.api_prefix)
 app.include_router(reports.router, prefix=settings.api_prefix)
 app.include_router(watchlist.router, prefix=settings.api_prefix)

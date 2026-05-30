@@ -214,15 +214,26 @@ def analyze_stream(
     target_id: int | None,
     max_tokens: int = 1024,
     force_model: str | None = None,
+    history: list[dict] | None = None,
 ) -> Iterator[StreamEvent]:
     """流式执行一次 AI 分析（带缓存与预算），逐段产出文本。
 
     流程与 analyze 一致：算 hash → 查缓存(命中直接整段返回) → 预算检查 →
     流式调用并累积 → 写缓存。无 key 优雅降级。
 
+    history: 多轮对话历史 [{"role": "user"|"assistant", "content": str}]，
+    会拼到本轮 user 消息之前一并发送给模型；同时纳入缓存键，确保不同
+    对话上下文不会命中彼此的缓存。
+
     注意：BudgetExceeded 会在迭代开始时抛出，调用方需在进入流之前处理。
     """
-    input_hash = compute_hash(prompt_type, user_content)
+    history = history or []
+    # 历史纳入缓存键：不同对话上下文的相同问句不应命中同一缓存
+    hash_basis = user_content
+    if history:
+        hist_repr = "\n".join(f"{m.get('role')}:{m.get('content')}" for m in history)
+        hash_basis = f"{hist_repr}\n---\n{user_content}"
+    input_hash = compute_hash(prompt_type, hash_basis)
 
     # 1. 缓存命中：直接整段吐出（仍走流式协议，前端体验一致）
     cached = _get_cached(session, prompt_type, input_hash)
@@ -255,7 +266,8 @@ def analyze_stream(
 
     # 3. 预算检查（用粗略预估）
     guard = BudgetGuard(session)
-    est_prompt = len(user_content) // 3 + len(system_prompt) // 3
+    hist_len = sum(len(m.get("content", "")) for m in history)
+    est_prompt = (len(user_content) + hist_len) // 3 + len(system_prompt) // 3
     est_cost = estimate_cost_jpy(model, est_prompt, max_tokens)
     guard.ensure(est_cost)  # 超限抛 BudgetExceeded
 
@@ -269,6 +281,14 @@ def analyze_stream(
 
     yield StreamEvent(type="meta", model=model, cached=False)
 
+    # 拼接多轮历史 + 本轮问句
+    messages: list[dict] = [
+        {"role": m["role"], "content": m["content"]}
+        for m in history
+        if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
+    messages.append({"role": "user", "content": user_content})
+
     parts: list[str] = []
     prompt_tokens = 0
     completion_tokens = 0
@@ -277,7 +297,7 @@ def analyze_stream(
             model=model,
             max_tokens=max_tokens,
             system=system_prompt,
-            messages=[{"role": "user", "content": user_content}],
+            messages=messages,
         ) as stream:
             for text in stream.text_stream:
                 if text:

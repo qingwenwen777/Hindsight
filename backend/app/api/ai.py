@@ -250,6 +250,9 @@ def chat_stream(payload: ChatRequest, session: Session = Depends(get_session)): 
             "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲，保证逐段下发
         },
     )
+
+
+@router.post("/quarterly-review", summary="AI 季度模式分析")
 def quarterly_review(
     year: int = Query(...),
     quarter: int = Query(..., ge=1, le=4),
