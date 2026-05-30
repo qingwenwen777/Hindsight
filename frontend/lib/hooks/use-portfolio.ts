@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
 import type {
+  DiscoverCandidate,
   Holding,
   Journal,
   PortfolioSummary,
@@ -63,6 +64,18 @@ export function useStockSearch(q: string) {
   });
 }
 
+/** 从数据源发现股票（本地查不到时用） */
+export function useStockDiscover(q: string, enabled = true) {
+  const term = q.trim();
+  return useQuery({
+    queryKey: ["stock-discover", term],
+    queryFn: async () =>
+      (await api.get<DiscoverCandidate[]>(`/stocks/discover?q=${encodeURIComponent(term)}`)).data,
+    enabled: enabled && term.length >= 2,
+    staleTime: 60_000,
+  });
+}
+
 /** 录入交易（含强制日志） */
 export function useCreateTransaction() {
   const qc = useQueryClient();
@@ -78,9 +91,16 @@ export function useCreateTransaction() {
   });
 }
 
-/** 登记股票 */
+/** 登记股票（可选 sync=true 在后台拉取历史行情） */
 export function useCreateStock() {
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: Partial<Stock>) => (await api.post<Stock>("/stocks", payload)).data,
+    mutationFn: async (payload: Partial<Stock> & { sync?: boolean }) =>
+      (await api.post<Stock>("/stocks", payload)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["stock-search"] });
+      qc.invalidateQueries({ queryKey: ["stock-discover"] });
+      qc.invalidateQueries({ queryKey: ["watchlist"] });
+    },
   });
 }

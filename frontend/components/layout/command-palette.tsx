@@ -8,6 +8,7 @@ import {
   Heart,
   LayoutDashboard,
   PieChart,
+  Plus,
   PlusCircle,
   Search,
   Settings,
@@ -19,7 +20,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api/client";
-import type { Stock } from "@/lib/api/types";
+import type { DiscoverCandidate, Stock } from "@/lib/api/types";
 
 interface NavCmd {
   label: string;
@@ -50,6 +51,8 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [stocks, setStocks] = useState<Stock[]>([]);
+  const [discovered, setDiscovered] = useState<DiscoverCandidate[]>([]);
+  const [adding, setAdding] = useState<string | null>(null);
 
   // Cmd/Ctrl+K 切换
   useEffect(() => {
@@ -64,21 +67,39 @@ export function CommandPalette() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // 股票搜索
+  // 股票搜索（本地库；查不到再从数据源发现）
   useEffect(() => {
     if (!open || query.trim().length === 0) {
       setStocks([]);
+      setDiscovered([]);
       return;
     }
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
         const res = await api.get<Stock[]>(`/stocks/search?q=${encodeURIComponent(query)}`);
-        if (!cancelled) setStocks(res.data.slice(0, 6));
+        if (cancelled) return;
+        const local = res.data.slice(0, 6);
+        setStocks(local);
+        if (local.length === 0 && query.trim().length >= 2) {
+          try {
+            const dis = await api.get<DiscoverCandidate[]>(
+              `/stocks/discover?q=${encodeURIComponent(query)}`,
+            );
+            if (!cancelled) setDiscovered(dis.data.slice(0, 6));
+          } catch {
+            if (!cancelled) setDiscovered([]);
+          }
+        } else {
+          setDiscovered([]);
+        }
       } catch {
-        if (!cancelled) setStocks([]);
+        if (!cancelled) {
+          setStocks([]);
+          setDiscovered([]);
+        }
       }
-    }, 200);
+    }, 250);
     return () => {
       cancelled = true;
       clearTimeout(t);
@@ -89,6 +110,25 @@ export function CommandPalette() {
     setOpen(false);
     setQuery("");
     router.push(href);
+  };
+
+  // 一键登记候选股票（含后台同步行情）并跳转个股页
+  const addAndGo = async (c: DiscoverCandidate) => {
+    const key = `${c.market}:${c.symbol}`;
+    setAdding(key);
+    try {
+      const res = await api.post<Stock>("/stocks", {
+        symbol: c.symbol,
+        market: c.market,
+        name: c.name,
+        currency: c.currency,
+        is_etf: c.quote_type === "ETF",
+        sync: true,
+      });
+      go(`/stocks/${res.data.id}`);
+    } catch {
+      setAdding(null);
+    }
   };
 
   if (!open) return null;
@@ -132,6 +172,30 @@ export function CommandPalette() {
                   <span className="tnum text-caption text-tertiary">{s.symbol} · {s.market}</span>
                 </Command.Item>
               ))}
+            </Command.Group>
+          )}
+
+          {stocks.length === 0 && discovered.length > 0 && (
+            <Command.Group heading="从数据源发现（添加并同步）" className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+              {discovered.map((c) => {
+                const key = `${c.market}:${c.symbol}`;
+                return (
+                  <Command.Item
+                    key={key}
+                    value={`discover-${key}`}
+                    onSelect={() => addAndGo(c)}
+                    className="flex cursor-pointer items-center justify-between rounded-md px-3 py-2 text-body text-secondary data-[selected=true]:bg-base data-[selected=true]:text-primary"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Plus className="h-3.5 w-3.5 text-accent" />
+                      {c.name}
+                    </span>
+                    <span className="tnum text-caption text-tertiary">
+                      {adding === key ? "添加中…" : `${c.symbol} · ${c.market}`}
+                    </span>
+                  </Command.Item>
+                );
+              })}
             </Command.Group>
           )}
 

@@ -30,6 +30,7 @@ def to_yf_symbol(symbol: str, market: str) -> str:
     - US: 直接用（AAPL）
     - HK: 4-5 位数字 + .HK（0700 -> 0700.HK；已带 .HK 则原样）
     - JP: 数字 + .T（7203 -> 7203.T）
+    - CN: A 股按交易所加后缀（上交所 .SS / 深交所 .SZ），作为 akshare 不可用时的回退
     """
     market = market.upper()
     s = symbol.upper()
@@ -39,6 +40,15 @@ def to_yf_symbol(symbol: str, market: str) -> str:
         return s if s.endswith(".HK") else f"{s.zfill(4)}.HK"
     if market == "JP":
         return s if s.endswith(".T") else f"{s}.T"
+    if market == "CN":
+        if s.endswith(".SS") or s.endswith(".SZ"):
+            return s
+        code = s.zfill(6)
+        # 上交所：60xxxx（主板）、68xxxx（科创板）、9xxxxx（B股）
+        # 深交所：00xxxx（主板）、30xxxx（创业板）、200xxx（B股）
+        if code[0] in ("6", "9"):
+            return f"{code}.SS"
+        return f"{code}.SZ"
     return s
 
 

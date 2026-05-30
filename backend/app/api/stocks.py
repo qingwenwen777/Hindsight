@@ -1,19 +1,21 @@
-"""股票相关接口：搜索、登记、详情、行情查询。"""
+"""股票相关接口：搜索、发现、登记、详情、行情查询。"""
 
 from __future__ import annotations
 
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.core.money import to_db_str
 from app.core.response import Meta, ok
-from app.database import get_session
+from app.database import engine, get_session
+from app.logging_config import get_logger
 from app.models.stock import Price, Stock
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
+log = get_logger(__name__)
 
 
 class StockCreate(BaseModel):
@@ -27,17 +29,46 @@ class StockCreate(BaseModel):
     sector: str | None = None
     currency: str
     is_etf: bool = False
+    sync: bool = False  # True 时登记后在后台拉取一次历史行情
+
+
+def _sync_one_stock(stock_id: int) -> None:
+    """后台任务：同步单只股票的历史行情（独立 session）。"""
+    from app.services.data_sync.sync_service import sync_stock_prices
+
+    try:
+        with Session(engine) as session:
+            stock = session.get(Stock, stock_id)
+            if stock is None:
+                return
+            sync_stock_prices(session, stock, full=True)
+    except Exception as e:  # noqa: BLE001  后台任务失败不影响请求
+        log.warning("stocks.bg_sync_failed", stock_id=stock_id, error=str(e))
 
 
 @router.post("", summary="登记股票")
-def create_stock(payload: StockCreate, session: Session = Depends(get_session)) -> dict:
-    """登记一只股票（symbol+market 唯一，已存在则返回现有）。"""
+def create_stock(
+    payload: StockCreate,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session),
+) -> dict:
+    """登记一只股票（symbol+market 唯一，已存在则返回现有）。
+
+    payload.sync=True 时，登记后在后台拉取一次历史行情（不阻塞响应）。
+    """
     existing = session.exec(
         select(Stock).where(
             Stock.symbol == payload.symbol, Stock.market == payload.market.upper()
         )
     ).first()
     if existing:
+        # 已存在但无行情且要求同步 → 触发一次后台同步
+        if payload.sync:
+            has_price = session.exec(
+                select(Price.date).where(Price.stock_id == existing.id).limit(1)
+            ).first()
+            if not has_price:
+                background_tasks.add_task(_sync_one_stock, existing.id)
         return ok(existing)
     stock = Stock(
         symbol=payload.symbol,
@@ -52,6 +83,8 @@ def create_stock(payload: StockCreate, session: Session = Depends(get_session)) 
     session.add(stock)
     session.commit()
     session.refresh(stock)
+    if payload.sync:
+        background_tasks.add_task(_sync_one_stock, stock.id)
     return ok(stock)
 
 
@@ -62,16 +95,55 @@ def search_stocks(
     limit: int = Query(20, le=100),
     session: Session = Depends(get_session),
 ) -> dict:
-    """按代码/名称模糊搜索。"""
+    """按代码/名称模糊搜索（本地库）。"""
     stmt = select(Stock)
     if market:
         stmt = stmt.where(Stock.market == market.upper())
     if q:
         like = f"%{q}%"
-        stmt = stmt.where((Stock.symbol.like(like)) | (Stock.name.like(like)))  # type: ignore[attr-defined]
+        stmt = stmt.where(
+            (Stock.symbol.like(like))
+            | (Stock.name.like(like))
+            | (Stock.name_en.like(like))  # type: ignore[union-attr]
+        )  # type: ignore[attr-defined]
     stmt = stmt.limit(limit)
     rows = list(session.exec(stmt).all())
     return ok(rows, meta=Meta(total=len(rows)))
+
+
+@router.get("/discover", summary="从数据源发现股票")
+def discover_stocks(
+    q: str = Query(..., min_length=2, description="代码或名称关键字"),
+    market: str | None = Query(None, description="限定市场：US/HK/JP/CN"),
+    limit: int = Query(8, le=20),
+    session: Session = Depends(get_session),
+) -> dict:
+    """通过外部数据源（yfinance）发现可登记的股票候选。
+
+    返回候选列表，并标记本地是否已登记（registered + stock_id）。
+    前端可据此做"一键添加并同步"。
+    """
+    from app.services.data_sync.discovery import discover_symbols
+    from app.services.data_sync.yfinance_client import YFinanceUnavailable
+
+    try:
+        candidates = discover_symbols(q, market=market, limit=limit)
+    except YFinanceUnavailable as e:
+        # 数据源不可用时返回空列表（前端按"无结果"处理），错误信息放在 meta
+        log.warning("stocks.discover_unavailable", q=q, error=str(e))
+        return ok([], meta=Meta(total=0))
+
+    # 标注本地已登记状态
+    for c in candidates:
+        existing = session.exec(
+            select(Stock).where(
+                Stock.symbol == c["symbol"], Stock.market == c["market"]
+            )
+        ).first()
+        c["registered"] = existing is not None
+        c["stock_id"] = existing.id if existing else None
+
+    return ok(candidates, meta=Meta(total=len(candidates)))
 
 
 @router.get("/{stock_id}", summary="股票详情")

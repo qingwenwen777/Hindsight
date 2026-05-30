@@ -12,6 +12,19 @@ export interface Stock {
   is_etf: boolean;
 }
 
+/** 从外部数据源发现的候选股票（尚未或已登记） */
+export interface DiscoverCandidate {
+  symbol: string;
+  market: string;
+  name: string;
+  currency: string;
+  exchange: string;
+  quote_type: string;
+  yf_symbol: string;
+  registered: boolean;
+  stock_id: number | null;
+}
+
 export interface Holding {
   stock_id: number;
   symbol: string;

@@ -16,8 +16,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
 import { useCooldownCheck } from "@/lib/hooks/use-biases";
-import { useCreateTransaction, useStockSearch } from "@/lib/hooks/use-portfolio";
-import type { Stock, TransactionCreate } from "@/lib/api/types";
+import {
+  useCreateStock,
+  useCreateTransaction,
+  useStockDiscover,
+  useStockSearch,
+} from "@/lib/hooks/use-portfolio";
+import type { DiscoverCandidate, Stock, TransactionCreate } from "@/lib/api/types";
 
 const MIN_THESIS = 100;
 
@@ -36,6 +41,10 @@ export default function NewTransactionPage() {
   const [stock, setStock] = useState<Stock | null>(null);
   const [search, setSearch] = useState("");
   const { data: searchResults } = useStockSearch(search);
+  const localEmpty = search.trim().length >= 2 && (searchResults ?? []).length === 0;
+  const { data: discovered, isFetching: discovering } = useStockDiscover(search, localEmpty);
+  const createStock = useCreateStock();
+  const [adding, setAdding] = useState<string | null>(null);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [quantity, setQuantity] = useState("");
   const [price, setPrice] = useState("");
@@ -63,6 +72,30 @@ export default function NewTransactionPage() {
   const step1Valid = stock && Number(quantity) > 0 && Number(price) > 0;
   const thesisValid = thesis.trim().length >= MIN_THESIS;
   const step2Valid = thesisValid && decisionType;
+
+  // 一键登记候选股票（含后台同步行情）并选中
+  const addCandidate = (c: DiscoverCandidate) => {
+    const key = `${c.market}:${c.symbol}`;
+    setAdding(key);
+    createStock.mutate(
+      {
+        symbol: c.symbol,
+        market: c.market,
+        name: c.name,
+        currency: c.currency,
+        is_etf: c.quote_type === "ETF",
+        sync: true,
+      },
+      {
+        onSuccess: (s) => {
+          setStock(s);
+          setSearch("");
+          setAdding(null);
+        },
+        onError: () => setAdding(null),
+      },
+    );
+  };
 
   const submit = () => {
     if (!stock) return;
@@ -150,6 +183,38 @@ export default function NewTransactionPage() {
                           <span className="tnum text-secondary">{s.symbol} · {s.market}</span>
                         </button>
                       ))}
+                    </div>
+                  )}
+                  {/* 本地无结果 → 数据源发现 */}
+                  {localEmpty && (
+                    <div className="absolute z-10 mt-1 w-full rounded-md border border-border-subtle bg-elevated shadow-lg">
+                      {(discovered ?? []).length > 0 && (
+                        <p className="px-3 pt-2 text-caption text-tertiary">
+                          本地未登记，从数据源发现：
+                        </p>
+                      )}
+                      {(discovered ?? []).map((c) => {
+                        const key = `${c.market}:${c.symbol}`;
+                        return (
+                          <button
+                            key={key}
+                            type="button"
+                            disabled={adding === key}
+                            onClick={() => addCandidate(c)}
+                            className="flex w-full items-center justify-between px-3 py-2 text-left text-small text-primary hover:bg-surface disabled:opacity-60"
+                          >
+                            <span>{c.name}</span>
+                            <span className="tnum text-secondary">
+                              {adding === key ? "添加中…" : `${c.symbol} · ${c.market}`}
+                            </span>
+                          </button>
+                        );
+                      })}
+                      {(discovered ?? []).length === 0 && (
+                        <p className="px-3 py-2 text-small text-tertiary">
+                          {discovering ? "正在从数据源搜索…" : "未找到匹配股票。"}
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
