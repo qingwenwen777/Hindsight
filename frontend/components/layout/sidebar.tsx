@@ -1,12 +1,9 @@
 "use client";
 
 import {
+  Banknote,
   Bot,
   CandlestickChart,
-  ChevronLeft,
-  ChevronRight,
-  Compass,
-  Gauge,
   Heart,
   LayoutDashboard,
   type LucideIcon,
@@ -18,7 +15,6 @@ import {
   Scale,
   Settings,
   Star,
-  Target,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -37,6 +33,7 @@ const NAV_GROUPS: {
     items: [
       { href: "/", label: "仪表盘", icon: LayoutDashboard },
       { href: "/portfolio/holdings", label: "持仓", icon: Wallet },
+      { href: "/portfolio/cash", label: "现金流", icon: Banknote },
       { href: "/watchlist", label: "关注", icon: Star },
     ],
   },
