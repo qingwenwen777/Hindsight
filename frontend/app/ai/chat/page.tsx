@@ -5,13 +5,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAiBudget, useAiChat, type ContextRef } from "@/lib/hooks/use-ai";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
-import { formatMoney } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 interface Msg {
   role: "user" | "ai";
   text: string;
-  meta?: { model: string; cost: string | null; cached: boolean };
+  meta?: { model: string; promptTokens: number; completionTokens: number; cached: boolean };
 }
 
 const SUGGESTIONS = [
@@ -19,6 +18,12 @@ const SUGGESTIONS = [
   "用魔鬼代言人视角挑战我的多头逻辑",
   "我最近的交易里有哪些认知偏差？",
 ];
+
+/** 紧凑显示 token 数（1234 -> 1.2k）。 */
+function formatTokens(n: number): string {
+  if (n < 1000) return String(n);
+  return `${(n / 1000).toFixed(n < 10000 ? 1 : 0)}k`;
+}
 
 export default function AiChatPage() {
   const { data: budget } = useAiBudget();
@@ -69,7 +74,12 @@ export default function AiChatPage() {
             {
               role: "ai",
               text: data.response,
-              meta: { model: data.model, cost: data.cost_jpy, cached: data.cached },
+              meta: {
+                model: data.model,
+                promptTokens: data.prompt_tokens,
+                completionTokens: data.completion_tokens,
+                cached: data.cached,
+              },
             },
           ]),
         onError: (e) =>
@@ -78,7 +88,6 @@ export default function AiChatPage() {
     );
   };
 
-  const usagePct = budget ? Math.round(budget.usage_ratio * 100) : 0;
   const selectedHoldings = (holdings ?? []).filter((h) =>
     selected.some((r) => r.type === "HOLDING" && r.id === h.stock_id),
   );
@@ -93,18 +102,11 @@ export default function AiChatPage() {
           <p className="text-caption text-tertiary">基于你的持仓与日志 · 仅定性分析</p>
         </div>
         {budget && (
-          <div className="w-44">
-            <div className="flex justify-between text-caption text-tertiary">
-              <span>本月预算</span>
-              <span className="tnum">
-                {formatMoney(budget.used_jpy)}/{formatMoney(budget.monthly_budget_jpy)}
-              </span>
-            </div>
-            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-elevated">
-              <div
-                className={cn("h-full rounded-full", budget.is_close ? "bg-warn" : "bg-primary/60")}
-                style={{ width: `${Math.min(usagePct, 100)}%` }}
-              />
+          <div className="text-right">
+            <div className="text-caption text-tertiary">本月 Token 用量</div>
+            <div className="tnum text-body text-secondary">
+              {formatTokens(budget.total_tokens)}
+              <span className="text-caption text-tertiary"> · {budget.calls} 次对话</span>
             </div>
           </div>
         )}
@@ -159,11 +161,18 @@ export default function AiChatPage() {
                     {m.text}
                   </div>
                   {m.meta && (
-                    <div className="mt-2 flex gap-2 text-caption text-muted">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-muted">
                       <span className="rounded border border-border-default px-1.5 py-0.5">
                         {m.meta.model}
                       </span>
-                      <span>{m.meta.cached ? "缓存命中" : formatMoney(m.meta.cost)}</span>
+                      {m.meta.cached ? (
+                        <span>缓存命中 · 未消耗 token</span>
+                      ) : (
+                        <span className="tnum">
+                          {formatTokens(m.meta.promptTokens + m.meta.completionTokens)} tokens
+                          （输入 {m.meta.promptTokens} · 输出 {m.meta.completionTokens}）
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

@@ -127,6 +127,7 @@ def list_insights(
 @router.get("/budget", summary="AI 预算用量")
 def get_budget(session: Session = Depends(get_session)) -> dict:
     guard = BudgetGuard(session)
+    prompt_tokens, completion_tokens, calls = guard.tokens_this_month()
     return ok(
         {
             "monthly_budget_jpy": to_db_str(guard.monthly_budget_jpy),
@@ -135,6 +136,10 @@ def get_budget(session: Session = Depends(get_session)) -> dict:
             "usage_ratio": round(guard.usage_ratio(), 4),
             "is_close": guard.is_close(),
             "available": ai_client.is_available(),
+            "prompt_tokens": prompt_tokens,
+            "completion_tokens": completion_tokens,
+            "total_tokens": prompt_tokens + completion_tokens,
+            "calls": calls,
         }
     )
 

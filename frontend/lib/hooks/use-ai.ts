@@ -11,6 +11,10 @@ export interface AiBudget {
   usage_ratio: number;
   is_close: boolean;
   available: boolean;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  calls: number;
 }
 
 export interface ChatResponse {

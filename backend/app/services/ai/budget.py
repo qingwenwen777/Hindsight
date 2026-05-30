@@ -43,6 +43,23 @@ class BudgetGuard:
                 total += D(c)
         return total
 
+    def tokens_this_month(self) -> tuple[int, int, int]:
+        """本月 token 用量：(prompt, completion, calls)。"""
+        start = self._month_start()
+        rows = self.session.exec(
+            select(AiInsight.prompt_tokens, AiInsight.completion_tokens).where(
+                AiInsight.created_at >= start
+            )
+        ).all()
+        prompt_total = 0
+        completion_total = 0
+        calls = 0
+        for pt, ct in rows:
+            calls += 1
+            prompt_total += pt or 0
+            completion_total += ct or 0
+        return prompt_total, completion_total, calls
+
     def remaining(self) -> Decimal:
         return self.monthly_budget_jpy - self.used_this_month()
 
