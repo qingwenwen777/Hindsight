@@ -68,20 +68,12 @@ export default function AiConfigPage() {
                 key={p.id}
                 onClick={() => setActiveId(p.id)}
                 className={cn(
-                  "group flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition-colors",
+                  "group flex items-center gap-2 rounded-lg px-3 py-2.5 text-left transition-colors",
                   p.id === activeId
                     ? "bg-elevated text-primary"
                     : "text-tertiary hover:bg-elevated/60 hover:text-primary",
                 )}
               >
-                <span
-                  className={cn(
-                    "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-badge font-semibold",
-                    p.enabled ? "bg-accent/15 text-accent" : "bg-elevated text-tertiary",
-                  )}
-                >
-                  {(p.name || "?").slice(0, 1).toUpperCase()}
-                </span>
                 <span className="min-w-0 flex-1 truncate text-body">{p.name}</span>
                 {p.is_default && <Star className="h-3.5 w-3.5 shrink-0 fill-warn text-warn" />}
                 {p.enabled && (
@@ -222,7 +214,7 @@ function ProviderEditor({
           onBlur={() => persist()}
           className="min-w-0 flex-1 bg-transparent text-title font-medium text-primary outline-none"
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {!provider.is_default && (
             <Button size="sm" variant="outline" className="gap-1.5" onClick={onSetDefault}>
               <Star className="h-3.5 w-3.5" />
@@ -244,15 +236,15 @@ function ProviderEditor({
               });
             }}
             className={cn(
-              "relative h-6 w-11 rounded-full transition-colors",
+              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
               enabled ? "bg-up" : "bg-border-strong",
             )}
             aria-label={t("aicfg.enabled")}
           >
             <span
               className={cn(
-                "absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform",
-                enabled ? "translate-x-[22px]" : "translate-x-0.5",
+                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
+                enabled ? "translate-x-[18px]" : "translate-x-0.5",
               )}
             />
           </button>
@@ -378,25 +370,25 @@ function ProviderEditor({
               return (
                 <div
                   key={m}
-                  className="group flex items-center gap-2 rounded-lg border border-border-default px-3 py-2 hover:border-border-strong"
+                  className="group flex items-center gap-2 rounded-md border border-border-default px-3 py-1.5 hover:border-border-strong"
                 >
-                  <span className="min-w-0 flex-1 truncate text-body text-primary">{m}</span>
+                  <span className="min-w-0 flex-1 truncate text-small text-primary">{m}</span>
                   <button
                     onClick={() => setDefaultModel(m)}
                     className={cn(
-                      "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-caption transition-colors",
+                      "inline-flex items-center gap-1 rounded px-1 py-0.5 text-caption transition-colors",
                       isDefault ? "text-warn" : "text-tertiary opacity-0 group-hover:opacity-100 hover:text-primary",
                     )}
                     title={t("aicfg.setDefaultModel")}
                   >
-                    <Star className={cn("h-3.5 w-3.5", isDefault && "fill-warn")} />
+                    <Star className={cn("h-3 w-3", isDefault && "fill-warn")} />
                     {isDefault && t("aicfg.defaultModel")}
                   </button>
                   <button
                     onClick={() => removeModel(m)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-tertiary opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                    className="flex h-5 w-5 items-center justify-center rounded text-tertiary opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3 w-3" />
                   </button>
                 </div>
               );
