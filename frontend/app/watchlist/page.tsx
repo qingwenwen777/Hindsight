@@ -9,11 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import { useCreateStock, useStockDiscover, useStockSearch } from "@/lib/hooks/use-portfolio";
 import { useAddWatch, useRemoveWatch, useWatchlist } from "@/lib/hooks/use-watchlist";
 import type { DiscoverCandidate } from "@/lib/api/types";
 
 export default function WatchlistPage() {
+  const { t } = useT();
   const [q, setQ] = useState("");
   const { data: results } = useStockSearch(q);
   const localEmpty = !!q && (results ?? []).length === 0;
@@ -56,14 +58,14 @@ export default function WatchlistPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-display text-secondary">关注列表</h1>
-        <p className="mt-2 text-meta text-tertiary">搜索加入关注，跟踪标的并快速跳转个股。</p>
+        <h1 className="text-display text-secondary">{t("watchlist.title")}</h1>
+        <p className="mt-2 text-meta text-tertiary">{t("watchlist.subtitle")}</p>
       </div>
 
       {/* 搜索加入 */}
       <Card>
         <CardContent className="p-5">
-          <Input placeholder="搜索代码或名称加入关注…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <Input placeholder={t("watchlist.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />
           {q && (
             <div className="mt-3 grid gap-1">
               {(results ?? []).map((s) => (
@@ -75,14 +77,14 @@ export default function WatchlistPage() {
                     {s.name} <span className="tnum text-tertiary">{s.symbol} · {s.market}</span>
                   </Link>
                   {watchedIds.has(s.id) ? (
-                    <span className="text-meta text-tertiary">已关注</span>
+                    <span className="text-meta text-tertiary">{t("watchlist.watched")}</span>
                   ) : (
                     <Button
                       size="sm"
                       variant="secondary"
                       onClick={() => add.mutate({ stock_id: s.id })}
                     >
-                      <Star className="h-3.5 w-3.5" /> 关注
+                      <Star className="h-3.5 w-3.5" /> {t("watchlist.watch")}
                     </Button>
                   )}
                 </div>
@@ -93,7 +95,7 @@ export default function WatchlistPage() {
                 <>
                   {(discovered ?? []).length > 0 && (
                     <p className="px-2 pt-1 text-caption text-tertiary">
-                      本地未登记，从数据源发现：
+                      {t("watchlist.discoverHint")}
                     </p>
                   )}
                   {(discovered ?? []).map((c) => {
@@ -117,14 +119,14 @@ export default function WatchlistPage() {
                           onClick={() => addCandidate(c)}
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          {adding === key ? "添加中…" : "添加并同步"}
+                          {adding === key ? t("watchlist.adding") : t("watchlist.addAndSync")}
                         </Button>
                       </div>
                     );
                   })}
                   {(discovered ?? []).length === 0 && (
                     <p className="px-2 py-2 text-meta text-tertiary">
-                      {discovering ? "正在从数据源搜索…" : "未找到匹配股票。"}
+                      {discovering ? t("watchlist.searching") : t("watchlist.notFound")}
                     </p>
                   )}
                 </>
@@ -137,13 +139,13 @@ export default function WatchlistPage() {
       {/* 已关注 */}
       <Card className="overflow-hidden">
         <div className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 bg-elevated px-5 py-2.5 label-caps">
-          <div>标的</div>
-          <div className="text-right">最新价</div>
-          <div>标签</div>
-          <div className="text-right">操作</div>
+          <div>{t("watchlist.col.symbol")}</div>
+          <div className="text-right">{t("watchlist.col.lastPrice")}</div>
+          <div>{t("watchlist.col.tags")}</div>
+          <div className="text-right">{t("watchlist.col.actions")}</div>
         </div>
         {!watch || watch.length === 0 ? (
-          <div className="px-5 py-12 text-center text-tertiary">还没有关注任何标的。</div>
+          <div className="px-5 py-12 text-center text-tertiary">{t("watchlist.empty")}</div>
         ) : (
           watch.map((w) => (
             <div
@@ -168,7 +170,7 @@ export default function WatchlistPage() {
                 <button
                   onClick={() => remove.mutate(w.stock_id)}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tertiary hover:bg-base hover:text-danger"
-                  aria-label="取消关注"
+                  aria-label={t("watchlist.unwatch")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

@@ -18,6 +18,7 @@ import { Card } from "@/components/ui/card";
 import { useEquityCurve } from "@/lib/hooks/use-analytics";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
+import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
 import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 
@@ -26,6 +27,7 @@ import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
  * KPI 卡片 + 净值曲线 + 需要注意 + 持仓表。
  */
 export default function DashboardPage() {
+  const { t } = useT();
   const baseCurrency = useUiStore((s) => s.baseCurrency);
   const { data: summary, isLoading: summaryLoading } = useSummary();
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
@@ -56,18 +58,20 @@ export default function DashboardPage() {
       {/* 页头 */}
       <div className="mb-4.5 flex items-end justify-between">
         <div>
-          <h1 className="text-display text-secondary">仪表盘</h1>
-          <div className="mt-2 text-meta text-tertiary">个人组合复盘 · 基准币种 {baseCurrency}</div>
+          <h1 className="text-display text-secondary">{t("dashboard.title")}</h1>
+          <div className="mt-2 text-meta text-tertiary">
+            {t("dashboard.subtitle", { currency: baseCurrency })}
+          </div>
         </div>
         <Link href="/transactions/new">
-          <Button>录入交易</Button>
+          <Button>{t("dashboard.recordTrade")}</Button>
         </Link>
       </div>
 
       {/* KPI 网格 */}
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Stat
-          label="Total Assets"
+          label={t("dashboard.totalAssets")}
           value={
             summaryLoading
               ? "…"
@@ -77,11 +81,11 @@ export default function DashboardPage() {
           }
         />
         <Stat
-          label="总成本"
+          label={t("dashboard.totalCost")}
           value={summaryLoading ? "…" : formatMoney(summary?.total_cost, baseCurrency)}
         />
         <Stat
-          label="浮动盈亏"
+          label={t("dashboard.unrealizedPnl")}
           value={
             summaryLoading
               ? "…"
@@ -91,7 +95,7 @@ export default function DashboardPage() {
           direction={pnlDirection(summary?.total_unrealized_pnl)}
         />
         <Stat
-          label="已实现盈亏"
+          label={t("dashboard.realizedPnl")}
           value={
             summaryLoading
               ? "…"
@@ -106,16 +110,16 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
         <Card className="p-5 lg:col-span-8">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-title font-medium text-primary">净值 vs 基准</h2>
+            <h2 className="text-title font-medium text-primary">{t("dashboard.equityVsBenchmark")}</h2>
             <div className="flex gap-3.5 text-meta text-tertiary">
               <span className="inline-flex items-center gap-1.5">
-                <i className="h-[7px] w-[7px] rounded-full bg-up" />组合
+                <i className="h-[7px] w-[7px] rounded-full bg-up" />{t("dashboard.portfolio")}
               </span>
             </div>
           </div>
           {equityData.length < 2 ? (
             <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
-              净值曲线将在持仓 + 行情同步后渲染
+              {t("dashboard.equityEmpty")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={300}>
@@ -140,16 +144,16 @@ export default function DashboardPage() {
 
         <Card className="p-5 lg:col-span-4">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-title font-medium text-primary">需要注意</h2>
+            <h2 className="text-title font-medium text-primary">{t("dashboard.attention")}</h2>
             <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium text-secondary">
-              {concentrationAlerts.length + (reminders?.length ?? 0)} alerts
+              {concentrationAlerts.length + (reminders?.length ?? 0)} {t("dashboard.alerts")}
             </span>
           </div>
           <div className="grid gap-3">
             {concentrationAlerts.length === 0 && (reminders?.length ?? 0) === 0 ? (
               <div className="rounded-md border border-border-default bg-base p-3.5">
-                <div className="text-body font-medium text-primary">组合健康</div>
-                <div className="mt-1.5 text-meta text-tertiary">暂无超阈值告警与到期复盘。</div>
+                <div className="text-body font-medium text-primary">{t("dashboard.healthy")}</div>
+                <div className="mt-1.5 text-meta text-tertiary">{t("dashboard.healthyDesc")}</div>
               </div>
             ) : (
               <>
@@ -161,10 +165,10 @@ export default function DashboardPage() {
                       className="rounded-md border border-border-default border-l-2 border-l-down bg-base p-3.5"
                     >
                       <div className="text-body font-medium text-primary">
-                        {h.symbol} 占 <span className="tnum">{w.toFixed(1)}%</span>
+                        {t("dashboard.concentrationPct", { symbol: h.symbol, pct: w.toFixed(1) })}
                       </div>
                       <div className="mt-1.5 text-meta text-tertiary">
-                        超 20% 阈值，建议复查集中度假设。
+                        {t("dashboard.concentrationDesc")}
                       </div>
                     </div>
                   );
@@ -176,10 +180,14 @@ export default function DashboardPage() {
                     className="block rounded-md border border-border-default border-l-2 border-l-accent bg-base p-3.5 hover:bg-elevated"
                   >
                     <div className="text-body font-medium text-primary">
-                      {r.name} <span className="tnum text-tertiary">{r.symbol}</span> 待 {r.due_milestone} 天复盘
+                      {t("dashboard.reviewDue", {
+                        name: r.name,
+                        symbol: r.symbol,
+                        days: r.due_milestone,
+                      })}
                     </div>
                     <div className="mt-1.5 text-meta text-tertiary">
-                      决策已 <span className="tnum">{r.days_since}</span> 天，去补一条复盘。
+                      {t("dashboard.reviewDueDesc", { days: r.days_since })}
                     </div>
                   </Link>
                 ))}
@@ -192,12 +200,12 @@ export default function DashboardPage() {
       {/* 持仓表 */}
       <Card className="overflow-hidden">
         <div className="grid min-h-[40px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 bg-elevated px-5 label-caps">
-          <div>Code</div>
-          <div className="text-right">Price</div>
-          <div className="text-right">Cost</div>
-          <div className="text-right">P/L</div>
-          <div className="text-right">Weight</div>
-          <div>Status</div>
+          <div>{t("dashboard.col.code")}</div>
+          <div className="text-right">{t("dashboard.col.price")}</div>
+          <div className="text-right">{t("dashboard.col.cost")}</div>
+          <div className="text-right">{t("dashboard.col.pl")}</div>
+          <div className="text-right">{t("dashboard.col.weight")}</div>
+          <div>{t("dashboard.col.status")}</div>
         </div>
         {holdingsLoading ? (
           [0, 1, 2].map((i) => (
@@ -207,9 +215,9 @@ export default function DashboardPage() {
           ))
         ) : sorted.length === 0 ? (
           <div className="px-5 py-12 text-center text-tertiary">
-            还没有持仓，
+            {t("dashboard.noHoldings")}
             <Link href="/transactions/new" className="text-primary underline underline-offset-2 hover:text-secondary">
-              去录入一笔交易
+              {t("dashboard.goRecord")}
             </Link>
           </div>
         ) : (
@@ -241,11 +249,11 @@ export default function DashboardPage() {
                 <div>
                   {over ? (
                     <span className="rounded-badge border border-down/55 bg-elevated px-1.5 py-0.5 text-badge font-medium text-down">
-                      集中度告警
+                      {t("dashboard.concentrationBadge")}
                     </span>
                   ) : (
                     <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium text-secondary">
-                      Hold
+                      {t("dashboard.hold")}
                     </span>
                   )}
                 </div>

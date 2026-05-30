@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useAiBudget, useAiChat, type ContextRef } from "@/lib/hooks/use-ai";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
+import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
 
 interface Msg {
@@ -13,12 +14,6 @@ interface Msg {
   meta?: { model: string; promptTokens: number; completionTokens: number; cached: boolean };
 }
 
-const SUGGESTIONS = [
-  "复盘我当前持仓的集中度风险",
-  "用魔鬼代言人视角挑战我的多头逻辑",
-  "我最近的交易里有哪些认知偏差？",
-];
-
 /** 紧凑显示 token 数（1234 -> 1.2k）。 */
 function formatTokens(n: number): string {
   if (n < 1000) return String(n);
@@ -26,6 +21,7 @@ function formatTokens(n: number): string {
 }
 
 export default function AiChatPage() {
+  const { t } = useT();
   const { data: budget } = useAiBudget();
   const { data: holdings } = useHoldings();
   const chat = useAiChat();
@@ -37,6 +33,8 @@ export default function AiChatPage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+
+  const SUGGESTIONS = [t("ai.suggestion.1"), t("ai.suggestion.2"), t("ai.suggestion.3")];
 
   // 自动滚到底
   useEffect(() => {
@@ -83,7 +81,7 @@ export default function AiChatPage() {
             },
           ]),
         onError: (e) =>
-          setMessages((m) => [...m, { role: "ai", text: `出错：${(e as Error).message}` }]),
+          setMessages((m) => [...m, { role: "ai", text: `${t("ai.errorPrefix")}${(e as Error).message}` }]),
       },
     );
   };
@@ -98,15 +96,15 @@ export default function AiChatPage() {
       {/* 顶部：标题 + 预算 */}
       <div className="flex items-center justify-between pb-4">
         <div>
-          <h1 className="text-title font-medium text-primary">AI 投资教练</h1>
-          <p className="text-caption text-tertiary">基于你的持仓与日志 · 仅定性分析</p>
+          <h1 className="text-title font-medium text-primary">{t("ai.title")}</h1>
+          <p className="text-caption text-tertiary">{t("ai.subtitle")}</p>
         </div>
         {budget && (
           <div className="text-right">
-            <div className="text-caption text-tertiary">本月 Token 用量</div>
+            <div className="text-caption text-tertiary">{t("ai.monthlyTokens")}</div>
             <div className="tnum text-body text-secondary">
               {formatTokens(budget.total_tokens)}
-              <span className="text-caption text-tertiary"> · {budget.calls} 次对话</span>
+              <span className="text-caption text-tertiary"> · {t("ai.calls", { n: budget.calls })}</span>
             </div>
           </div>
         )}
@@ -120,9 +118,9 @@ export default function AiChatPage() {
               <Bot className="h-7 w-7 text-primary" />
             </div>
             <div>
-              <h2 className="text-display text-primary">问点什么？</h2>
+              <h2 className="text-display text-primary">{t("ai.empty.title")}</h2>
               <p className="mt-2 text-meta text-tertiary">
-                选几个持仓作为上下文，让 AI 基于你的真实数据复盘。
+                {t("ai.empty.desc")}
               </p>
             </div>
             <div className="flex w-full max-w-md flex-col gap-2">
@@ -155,7 +153,7 @@ export default function AiChatPage() {
                 </div>
                 <div className="min-w-0 flex-1 pt-0.5">
                   <div className="mb-1 text-caption font-medium text-tertiary">
-                    {m.role === "user" ? "你" : "AI 教练"}
+                    {m.role === "user" ? t("ai.you") : t("ai.coach")}
                   </div>
                   <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
                     {m.text}
@@ -166,11 +164,14 @@ export default function AiChatPage() {
                         {m.meta.model}
                       </span>
                       {m.meta.cached ? (
-                        <span>缓存命中 · 未消耗 token</span>
+                        <span>{t("ai.cached")}</span>
                       ) : (
                         <span className="tnum">
-                          {formatTokens(m.meta.promptTokens + m.meta.completionTokens)} tokens
-                          （输入 {m.meta.promptTokens} · 输出 {m.meta.completionTokens}）
+                          {t("ai.tokensDetail", {
+                            total: m.meta.promptTokens + m.meta.completionTokens,
+                            prompt: m.meta.promptTokens,
+                            completion: m.meta.completionTokens,
+                          })}
                         </span>
                       )}
                     </div>
@@ -228,7 +229,7 @@ export default function AiChatPage() {
                 send();
               }
             }}
-            placeholder="问 AI 教练…（Enter 发送，Shift+Enter 换行）"
+            placeholder={t("ai.inputPlaceholder")}
             className="block max-h-[200px] w-full resize-none bg-transparent px-4 pb-12 pt-3.5 text-body text-primary outline-none placeholder:text-tertiary"
           />
           {/* 底部操作条 */}
@@ -239,7 +240,7 @@ export default function AiChatPage() {
                 className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-2.5 py-1.5 text-caption text-secondary hover:bg-elevated hover:text-primary"
               >
                 <Plus className="h-3.5 w-3.5" />
-                上下文
+                {t("ai.context")}
                 {selected.length > 0 && (
                   <span className="tnum rounded-full bg-elevated px-1.5 text-caption">
                     {selected.length}
@@ -249,7 +250,7 @@ export default function AiChatPage() {
               {pickerOpen && (
                 <div className="absolute bottom-full left-0 mb-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-border-strong bg-elevated p-1 shadow-xl">
                   {(holdings ?? []).length === 0 ? (
-                    <p className="px-3 py-2 text-caption text-tertiary">暂无持仓可引用</p>
+                    <p className="px-3 py-2 text-caption text-tertiary">{t("ai.noHoldings")}</p>
                   ) : (
                     (holdings ?? []).map((h) => {
                       const on = selected.some((r) => r.type === "HOLDING" && r.id === h.stock_id);
@@ -275,14 +276,14 @@ export default function AiChatPage() {
               onClick={() => send()}
               disabled={chat.isPending || !input.trim()}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-btn-primary text-btn-primary-fg transition-opacity hover:opacity-90 disabled:opacity-30"
-              aria-label="发送"
+              aria-label={t("ai.send")}
             >
               <Send className="h-4 w-4" />
             </button>
           </div>
         </div>
         <p className="mt-2 text-center text-caption text-muted">
-          AI 仅供参考，不构成投资建议，不显示买卖信号。
+          {t("ai.disclaimer")}
         </p>
       </div>
     </div>

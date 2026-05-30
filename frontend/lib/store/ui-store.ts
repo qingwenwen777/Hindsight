@@ -9,22 +9,26 @@ export type Theme = "dark" | "light";
 export type ColorScheme = "asia" | "western";
 /** 基准展示币种 */
 export type BaseCurrency = "JPY" | "USD" | "CNY";
+/** 界面语言：中 / 日 / 英 */
+export type Locale = "zh" | "ja" | "en";
 
 interface UiState {
   theme: Theme;
   colorScheme: ColorScheme;
   baseCurrency: BaseCurrency;
+  locale: Locale;
   sidebarCollapsed: boolean;
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   setColorScheme: (c: ColorScheme) => void;
   setBaseCurrency: (c: BaseCurrency) => void;
+  setLocale: (l: Locale) => void;
   setSidebarCollapsed: (v: boolean) => void;
 }
 
 /**
  * 全局 UI 客户端状态（持久化到 localStorage）。
- * 主题、涨跌色、基准币种、侧栏折叠等偏好。
+ * 主题、涨跌色、基准币种、界面语言、侧栏折叠等偏好。
  */
 export const useUiStore = create<UiState>()(
   persist(
@@ -32,13 +36,16 @@ export const useUiStore = create<UiState>()(
       theme: "dark",
       colorScheme: "western",
       baseCurrency: "JPY",
+      locale: "zh",
       sidebarCollapsed: false,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
       setColorScheme: (colorScheme) => set({ colorScheme }),
       setBaseCurrency: (baseCurrency) => set({ baseCurrency }),
+      setLocale: (locale) => set({ locale }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
     }),
     { name: "tradeai-ui" },
   ),
 );
+

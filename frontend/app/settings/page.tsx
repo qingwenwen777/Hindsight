@@ -2,41 +2,64 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { LOCALES } from "@/lib/i18n/messages";
+import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
 
 export default function SettingsPage() {
-  const { theme, colorScheme, baseCurrency, setTheme, setColorScheme, setBaseCurrency } =
-    useUiStore();
+  const { t } = useT();
+  const {
+    theme,
+    colorScheme,
+    baseCurrency,
+    locale,
+    setTheme,
+    setColorScheme,
+    setBaseCurrency,
+    setLocale,
+  } = useUiStore();
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">设置</h1>
-        <p className="text-small text-secondary">外观与展示偏好（本地保存）。</p>
+        <h1 className="text-h1 text-primary">{t("settings.title")}</h1>
+        <p className="text-small text-secondary">{t("settings.subtitle")}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>外观</CardTitle>
+          <CardTitle>{t("settings.appearance")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Row label="主题">
+          <Row label={t("settings.language")}>
+            {LOCALES.map((l) => (
+              <Button
+                key={l.value}
+                size="sm"
+                variant={locale === l.value ? "default" : "outline"}
+                onClick={() => setLocale(l.value)}
+              >
+                {l.label}
+              </Button>
+            ))}
+          </Row>
+          <Row label={t("settings.theme")}>
             <Button size="sm" variant={theme === "dark" ? "default" : "outline"} onClick={() => setTheme("dark")}>
-              深色
+              {t("settings.dark")}
             </Button>
             <Button size="sm" variant={theme === "light" ? "default" : "outline"} onClick={() => setTheme("light")}>
-              浅色
+              {t("settings.light")}
             </Button>
           </Row>
-          <Row label="涨跌色">
+          <Row label={t("settings.colorScheme")}>
             <Button size="sm" variant={colorScheme === "western" ? "default" : "outline"} onClick={() => setColorScheme("western")}>
-              绿涨红跌（美/日/港）
+              {t("settings.western")}
             </Button>
             <Button size="sm" variant={colorScheme === "asia" ? "default" : "outline"} onClick={() => setColorScheme("asia")}>
-              红涨绿跌（A 股）
+              {t("settings.asia")}
             </Button>
           </Row>
-          <Row label="基准币种">
+          <Row label={t("settings.baseCurrency")}>
             {(["JPY", "USD", "CNY"] as const).map((c) => (
               <Button key={c} size="sm" variant={baseCurrency === c ? "default" : "outline"} onClick={() => setBaseCurrency(c)}>
                 {c}
@@ -48,11 +71,11 @@ export default function SettingsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>AI 与备份</CardTitle>
+          <CardTitle>{t("settings.aiBackup")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-small text-secondary">
-          <p>AI 月度预算、券商费率、备份口令等在后端 <code className="text-primary">.env</code> 配置。</p>
-          <p>AI 功能需配置 <code className="text-primary">ANTHROPIC_API_KEY</code>，缺失时相关功能优雅降级。</p>
+          <p>{t("settings.aiBackupDesc1")}</p>
+          <p>{t("settings.aiBackupDesc2")}</p>
         </CardContent>
       </Card>
     </div>
@@ -61,9 +84,9 @@ export default function SettingsPage() {
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between">
-      <span className="text-small text-secondary">{label}</span>
-      <div className="flex gap-2">{children}</div>
+    <div className="flex items-center justify-between gap-3">
+      <span className="shrink-0 text-small text-secondary">{label}</span>
+      <div className="flex flex-wrap justify-end gap-2">{children}</div>
     </div>
   );
 }

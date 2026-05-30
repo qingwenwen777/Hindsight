@@ -45,8 +45,17 @@ const config: Config = {
         input: "var(--border-default)",
       },
       fontFamily: {
-        sans: ["Inter", "PingFang SC", "Microsoft YaHei", "system-ui", "sans-serif"],
-        mono: ["JetBrains Mono", "Roboto Mono", "ui-monospace", "monospace"],
+        sans: [
+          "var(--font-sans-latin)",
+          "var(--font-sans-sc)",
+          "var(--font-sans-jp)",
+          "PingFang SC",
+          "Hiragino Sans",
+          "Microsoft YaHei",
+          "system-ui",
+          "sans-serif",
+        ],
+        mono: ["var(--font-mono)", "JetBrains Mono", "Roboto Mono", "ui-monospace", "monospace"],
       },
       fontSize: {
         // 字号阶梯（Hindsight）

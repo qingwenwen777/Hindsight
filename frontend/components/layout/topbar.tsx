@@ -4,13 +4,16 @@ import { Bell, Moon, Search, Settings, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
+import { useT } from "@/lib/i18n/use-t";
 import { useUiStore, type BaseCurrency } from "@/lib/store/ui-store";
 
 const CURRENCIES: BaseCurrency[] = ["JPY", "USD", "CNY"];
 
 export function Topbar() {
   const router = useRouter();
+  const { t } = useT();
   const theme = useUiStore((s) => s.theme);
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const baseCurrency = useUiStore((s) => s.baseCurrency);
@@ -44,7 +47,7 @@ export function Topbar() {
         <Search className="h-4 w-4" />
         <input
           ref={searchRef}
-          placeholder="搜索标的、决策、日志…（按 / 聚焦）"
+          placeholder={t("topbar.searchPlaceholder")}
           className="w-full bg-transparent text-body text-primary outline-none placeholder:text-tertiary"
           onKeyDown={(e) => {
             if (e.key === "Enter" && e.currentTarget.value.trim()) {
@@ -58,11 +61,14 @@ export function Topbar() {
       </div>
 
       <div className="flex items-center gap-2">
+        {/* 语言切换 */}
+        <LanguageSwitcher />
+
         {/* 基准币种切换 */}
         <button
           onClick={cycleCurrency}
           className="tnum flex h-[34px] items-center rounded-md border border-border-default px-3 text-body font-medium text-secondary hover:border-border-strong"
-          aria-label="基准币种"
+          aria-label={t("topbar.baseCurrency")}
         >
           {baseCurrency}
         </button>
@@ -71,7 +77,7 @@ export function Topbar() {
         <button
           onClick={toggleTheme}
           className="flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border-default text-secondary hover:bg-elevated hover:text-primary"
-          aria-label="切换主题"
+          aria-label={t("topbar.toggleTheme")}
         >
           {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </button>
@@ -80,7 +86,7 @@ export function Topbar() {
         <button
           onClick={() => router.push("/journals")}
           className="relative flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border-default text-secondary hover:bg-elevated hover:text-primary"
-          aria-label="复盘提醒"
+          aria-label={t("topbar.reminders")}
         >
           <Bell className="h-4 w-4" />
           {unread > 0 && (
@@ -94,7 +100,7 @@ export function Topbar() {
         <button
           onClick={() => router.push("/settings")}
           className="flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border-default text-secondary hover:bg-elevated hover:text-primary"
-          aria-label="设置"
+          aria-label={t("topbar.settings")}
         >
           <Settings className="h-4 w-4" />
         </button>
