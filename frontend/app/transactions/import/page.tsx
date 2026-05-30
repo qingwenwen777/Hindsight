@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useT } from "@/lib/i18n/use-t";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -33,6 +34,7 @@ interface PreviewData {
  * 上传 → 自动检测格式 → 预览（有效/无效行）→ 批量提交。
  */
 export default function ImportPage() {
+  const { t } = useT();
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -56,7 +58,7 @@ export default function ImportPage() {
       if (body.code !== 0) throw new Error(body.message);
       setPreview(body.data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "预览失败");
+      setError(e instanceof Error ? e.message : t("import.previewFailed"));
     } finally {
       setLoading(false);
     }
@@ -75,13 +77,13 @@ export default function ImportPage() {
       });
       const body = await resp.json();
       if (body.code !== 0) throw new Error(body.message);
-      setResult(`导入完成：写入 ${body.data.inserted} 笔，跳过 ${body.data.skipped} 笔`);
+      setResult(t("import.done", { inserted: body.data.inserted, skipped: body.data.skipped }));
       setPreview(null);
       setFile(null);
       qc.invalidateQueries({ queryKey: ["holdings"] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "导入失败");
+      setError(e instanceof Error ? e.message : t("import.importFailed"));
     } finally {
       setLoading(false);
     }
@@ -90,9 +92,9 @@ export default function ImportPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">批量导入</h1>
+        <h1 className="text-h1 text-primary">{t("import.title")}</h1>
         <p className="text-small text-secondary">
-          上传券商 CSV（富途 / 雪球 / 通用格式），自动检测并预览后批量写入。导入项会创建占位日志，可后期补写。
+          {t("import.subtitle")}
         </p>
       </div>
 
@@ -112,7 +114,7 @@ export default function ImportPage() {
             }}
           />
           <Button onClick={() => fileRef.current?.click()} disabled={loading}>
-            选择 CSV 文件
+            {t("import.chooseFile")}
           </Button>
           {file && <span className="text-small text-secondary">{file.name}</span>}
         </CardContent>
@@ -125,9 +127,9 @@ export default function ImportPage() {
         <Card>
           <CardHeader>
             <CardTitle>
-              预览 · 检测格式 <span className="text-accent">{preview.broker}</span> · 共 {preview.total} 行（
-              <span className="text-up">{preview.valid} 有效</span> /
-              <span className="text-down"> {preview.invalid} 无效</span>）
+              {t("import.previewTitle")} <span className="text-accent">{preview.broker}</span> · {t("import.totalRows", { total: preview.total })}（
+              <span className="text-up">{t("import.valid", { n: preview.valid })}</span> /
+              <span className="text-down"> {t("import.invalid", { n: preview.invalid })}</span>）
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -135,13 +137,13 @@ export default function ImportPage() {
               <table className="w-full text-small">
                 <thead>
                   <tr className="border-b border-border-subtle text-caption text-secondary">
-                    <th className="px-2 py-2 text-left">代码</th>
-                    <th className="px-2 py-2 text-left">市场</th>
-                    <th className="px-2 py-2 text-left">方向</th>
-                    <th className="px-2 py-2 text-left">日期</th>
-                    <th className="px-2 py-2 text-right">数量</th>
-                    <th className="px-2 py-2 text-right">价格</th>
-                    <th className="px-2 py-2 text-left">状态</th>
+                    <th className="px-2 py-2 text-left">{t("import.col.code")}</th>
+                    <th className="px-2 py-2 text-left">{t("import.col.market")}</th>
+                    <th className="px-2 py-2 text-left">{t("import.col.side")}</th>
+                    <th className="px-2 py-2 text-left">{t("import.col.date")}</th>
+                    <th className="px-2 py-2 text-right">{t("import.col.qty")}</th>
+                    <th className="px-2 py-2 text-right">{t("import.col.price")}</th>
+                    <th className="px-2 py-2 text-left">{t("import.col.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -169,7 +171,7 @@ export default function ImportPage() {
             </div>
             <div className="mt-4 flex justify-end">
               <Button onClick={doImport} disabled={loading || preview.valid === 0}>
-                确认导入 {preview.valid} 笔
+                {t("import.confirm", { n: preview.valid })}
               </Button>
             </div>
           </CardContent>

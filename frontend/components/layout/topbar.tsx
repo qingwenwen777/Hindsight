@@ -41,7 +41,7 @@ export function Topbar() {
   };
 
   return (
-    <header className="flex h-[60px] shrink-0 items-center gap-5 border-b border-border-subtle bg-surface px-6 card-shadow">
+    <header className="relative z-30 flex h-[60px] shrink-0 items-center gap-5 border-b border-border-subtle bg-surface px-6 card-shadow">
       {/* 全局搜索（pill 样式，点击/聚焦后回车进关注页；Cmd+K 开命令面板） */}
       <div className="flex h-10 min-w-[260px] max-w-[520px] flex-1 items-center gap-2.5 rounded-pill bg-elevated px-4 text-tertiary">
         <Search className="h-4 w-4" />

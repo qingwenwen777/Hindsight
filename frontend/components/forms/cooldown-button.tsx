@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
 
 interface CooldownButtonProps {
@@ -26,9 +27,10 @@ export function CooldownButton({
   onConfirm,
   disabled = false,
   loading = false,
-  label = "确认提交",
+  label,
   className,
 }: CooldownButtonProps) {
+  const { t } = useT();
   const [counting, setCounting] = useState(false);
   const [remaining, setRemaining] = useState(seconds);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -65,7 +67,7 @@ export function CooldownButton({
   if (!counting) {
     return (
       <Button onClick={start} disabled={disabled || loading} className={className}>
-        {label}
+        {label ?? t("form.confirmSubmit")}
       </Button>
     );
   }
@@ -74,7 +76,7 @@ export function CooldownButton({
     <div className="flex items-center gap-3">
       {ready ? (
         <Button onClick={onConfirm} disabled={loading} className={className}>
-          {loading ? "提交中…" : "确定，提交"}
+          {loading ? t("form.submitting") : t("form.confirmGo")}
         </Button>
       ) : (
         <div className="flex items-center gap-3">
@@ -104,11 +106,11 @@ export function CooldownButton({
               {remaining}
             </span>
           </div>
-          <span className="text-small text-secondary">再想想，确定就提交</span>
+          <span className="text-small text-secondary">{t("form.reconsider")}</span>
         </div>
       )}
       <Button variant="ghost" size="sm" onClick={cancel} disabled={loading}>
-        取消
+        {t("form.cancel")}
       </Button>
     </div>
   );

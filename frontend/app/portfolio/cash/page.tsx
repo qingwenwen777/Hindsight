@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { formatDate, formatMoney } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import {
   useAccounts,
   useCashFlows,
@@ -19,25 +20,22 @@ import {
 } from "@/lib/hooks/use-cash";
 import { cn } from "@/lib/utils";
 
-const FLOW_LABELS: Record<string, string> = {
-  DEPOSIT: "入金",
-  WITHDRAW: "出金",
-  DIVIDEND: "分红",
-  INTEREST: "利息",
-  TRADE_BUY: "买入",
-  TRADE_SELL: "卖出",
-  FEE: "费用",
-  TAX: "税",
-  FX: "换汇",
+const FLOW_TYPE_KEYS: Record<string, string> = {
+  DEPOSIT: "cash.flow.DEPOSIT",
+  WITHDRAW: "cash.flow.WITHDRAW",
+  DIVIDEND: "cash.flow.DIVIDEND",
+  INTEREST: "cash.flow.INTEREST",
+  TRADE_BUY: "cash.flow.TRADE_BUY",
+  TRADE_SELL: "cash.flow.TRADE_SELL",
+  FEE: "cash.flow.FEE",
+  TAX: "cash.flow.TAX",
+  FX: "cash.flow.FX",
 };
 
 const CCY_OPTIONS = ["JPY", "USD", "CNY", "HKD"].map((c) => ({ value: c, label: c }));
-const FLOW_OPTIONS = ["DEPOSIT", "WITHDRAW", "DIVIDEND", "INTEREST"].map((t) => ({
-  value: t,
-  label: FLOW_LABELS[t],
-}));
 
 export default function CashPage() {
+  const { t } = useT();
   const { data: accounts } = useAccounts();
   const [selected, setSelected] = useState<number | undefined>(undefined);
   const { data: flows } = useCashFlows(selected);
@@ -45,6 +43,11 @@ export default function CashPage() {
   const updateAccount = useUpdateAccount();
   const deleteAccount = useDeleteAccount();
   const createFlow = useCreateCashFlow();
+
+  const FLOW_OPTIONS = ["DEPOSIT", "WITHDRAW", "DIVIDEND", "INTEREST"].map((ty) => ({
+    value: ty,
+    label: t(FLOW_TYPE_KEYS[ty]),
+  }));
 
   const [accName, setAccName] = useState("");
   const [accCcy, setAccCcy] = useState("JPY");
@@ -86,8 +89,8 @@ export default function CashPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-display text-secondary">现金流</h1>
-        <p className="mt-2 text-meta text-tertiary">多币种现金账户与流水。</p>
+        <h1 className="text-display text-secondary">{t("cash.title")}</h1>
+        <p className="mt-2 text-meta text-tertiary">{t("cash.subtitle")}</p>
       </div>
 
       {err && (
@@ -161,14 +164,14 @@ export default function CashPage() {
                         setEditName(a.name);
                       }}
                       className="flex h-6 w-6 items-center justify-center rounded text-tertiary hover:bg-elevated hover:text-primary"
-                      aria-label="改名"
+                      aria-label={t("cash.rename")}
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(a.id)}
                       className="flex h-6 w-6 items-center justify-center rounded text-tertiary hover:bg-elevated hover:text-danger"
-                      aria-label="删除"
+                      aria-label={t("cash.delete")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -185,15 +188,15 @@ export default function CashPage() {
         <div className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>新建账户</CardTitle>
+              <CardTitle>{t("cash.newAccount")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="space-y-1">
-                <Label>名称</Label>
-                <Input value={accName} onChange={(e) => setAccName(e.target.value)} placeholder="如 富途港股" />
+                <Label>{t("cash.accName")}</Label>
+                <Input value={accName} onChange={(e) => setAccName(e.target.value)} placeholder={t("cash.accNamePlaceholder")} />
               </div>
               <div className="space-y-1">
-                <Label>币种</Label>
+                <Label>{t("cash.currency")}</Label>
                 <Select value={accCcy} onValueChange={setAccCcy} options={CCY_OPTIONS} />
               </div>
               <Button
@@ -206,7 +209,7 @@ export default function CashPage() {
                   )
                 }
               >
-                创建账户
+                {t("cash.createAccount")}
               </Button>
             </CardContent>
           </Card>
@@ -214,24 +217,24 @@ export default function CashPage() {
           {activeAccount && (
             <Card>
               <CardHeader>
-                <CardTitle>记一笔现金流</CardTitle>
+                <CardTitle>{t("cash.recordFlow")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="space-y-1">
-                  <Label>类型</Label>
+                  <Label>{t("cash.flowType")}</Label>
                   <Select value={flowType} onValueChange={setFlowType} options={FLOW_OPTIONS} />
                 </div>
                 <div className="space-y-1">
-                  <Label>金额（{activeAccount.currency}）</Label>
+                  <Label>{t("cash.amount", { currency: activeAccount.currency })}</Label>
                   <Input
                     className="tnum"
                     value={flowAmount}
                     onChange={(e) => setFlowAmount(e.target.value)}
-                    placeholder="出金会自动取负"
+                    placeholder={t("cash.amountPlaceholder")}
                   />
                 </div>
                 <Button className="w-full" disabled={!flowAmount || createFlow.isPending} onClick={submitFlow}>
-                  记录到 {activeAccount.name}
+                  {t("cash.recordTo", { name: activeAccount.name })}
                 </Button>
               </CardContent>
             </Card>
@@ -241,12 +244,12 @@ export default function CashPage() {
         {/* 流水表 */}
         <Card className="overflow-hidden lg:col-span-2">
           <div className="grid grid-cols-[1fr_1fr_1fr] items-center gap-4 bg-elevated px-5 py-2.5 label-caps">
-            <div>日期</div>
-            <div>类型</div>
-            <div className="text-right">金额</div>
+            <div>{t("cash.col.date")}</div>
+            <div>{t("cash.col.type")}</div>
+            <div className="text-right">{t("cash.col.amount")}</div>
           </div>
           {!flows || flows.length === 0 ? (
-            <div className="px-5 py-12 text-center text-tertiary">该账户暂无流水。</div>
+            <div className="px-5 py-12 text-center text-tertiary">{t("cash.noFlows")}</div>
           ) : (
             flows.map((f) => {
               const amt = Number(f.amount);
@@ -256,7 +259,7 @@ export default function CashPage() {
                   className="grid grid-cols-[1fr_1fr_1fr] items-center gap-4 border-b border-border-default px-5 py-3 last:border-b-0"
                 >
                   <div className="tnum text-secondary">{formatDate(f.flow_date)}</div>
-                  <div className="text-primary">{FLOW_LABELS[f.type] ?? f.type}</div>
+                  <div className="text-primary">{FLOW_TYPE_KEYS[f.type] ? t(FLOW_TYPE_KEYS[f.type]) : f.type}</div>
                   <div className={cn("tnum text-right", amt >= 0 ? "text-up" : "text-down")}>
                     {formatMoney(f.amount, f.currency, { sign: true })}
                   </div>

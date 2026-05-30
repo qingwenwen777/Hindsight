@@ -15,6 +15,7 @@ import {
 import { EMOTIONS } from "@/components/forms/emotion-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
+import { useT, type TFunc } from "@/lib/i18n/use-t";
 
 interface EmotionRow {
   emotion: string;
@@ -31,19 +32,20 @@ interface AuditData {
   conclusions: string[];
 }
 
-function emotionLabel(value: string) {
+function emotionLabel(t: TFunc, value: string) {
   const e = EMOTIONS.find((x) => x.value === value);
-  return e ? `${e.emoji} ${e.label}` : value;
+  return e ? `${e.emoji} ${t(`form.emotion.${e.value}`)}` : value;
 }
 
 export default function EmotionAuditPage() {
+  const { t } = useT();
   const { data, isLoading } = useQuery({
     queryKey: ["emotion-audit"],
     queryFn: async () => (await api.get<AuditData>("/reports/emotion-audit")).data,
   });
 
   const chartData = (data?.by_emotion ?? []).map((r) => ({
-    name: emotionLabel(r.emotion),
+    name: emotionLabel(t, r.emotion),
     winRate: r.win_rate_pct,
     samples: r.samples,
   }));
@@ -51,9 +53,9 @@ export default function EmotionAuditPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">情绪审计</h1>
+        <h1 className="text-h1 text-primary">{t("emotion.title")}</h1>
         <p className="text-small text-secondary">
-          不同情绪下的买入交易后续表现（30 天回报为正记为胜）。
+          {t("emotion.subtitle")}
         </p>
       </div>
 
@@ -70,14 +72,14 @@ export default function EmotionAuditPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>各情绪胜率对比</CardTitle>
+          <CardTitle>{t("emotion.winRateChart")}</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <div className="h-64 animate-pulse rounded-md bg-elevated" />
           ) : chartData.length === 0 ? (
             <div className="flex h-64 items-center justify-center text-secondary">
-              暂无足够数据（需要带情绪标记的交易 + 后续行情）
+              {t("emotion.noData")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
@@ -115,23 +117,23 @@ export default function EmotionAuditPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>明细</CardTitle>
+          <CardTitle>{t("emotion.detail")}</CardTitle>
         </CardHeader>
         <CardContent>
           <table className="w-full text-small">
             <thead>
               <tr className="border-b border-border-subtle text-caption text-secondary">
-                <th className="px-2 py-2 text-left">情绪</th>
-                <th className="px-2 py-2 text-right">样本</th>
-                <th className="px-2 py-2 text-right">胜率</th>
-                <th className="px-2 py-2 text-right">平均回报</th>
-                <th className="px-2 py-2 text-right">盈亏比</th>
+                <th className="px-2 py-2 text-left">{t("emotion.col.emotion")}</th>
+                <th className="px-2 py-2 text-right">{t("emotion.col.samples")}</th>
+                <th className="px-2 py-2 text-right">{t("emotion.col.winRate")}</th>
+                <th className="px-2 py-2 text-right">{t("emotion.col.avgReturn")}</th>
+                <th className="px-2 py-2 text-right">{t("emotion.col.plRatio")}</th>
               </tr>
             </thead>
             <tbody>
               {(data?.by_emotion ?? []).map((r) => (
                 <tr key={r.emotion} className="border-b border-border-subtle/50">
-                  <td className="px-2 py-2 text-primary">{emotionLabel(r.emotion)}</td>
+                  <td className="px-2 py-2 text-primary">{emotionLabel(t, r.emotion)}</td>
                   <td className="tnum px-2 py-2 text-right text-secondary">{r.samples}</td>
                   <td className="tnum px-2 py-2 text-right text-primary">{r.win_rate_pct}%</td>
                   <td className="tnum px-2 py-2 text-right text-secondary">

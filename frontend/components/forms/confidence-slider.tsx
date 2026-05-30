@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
 
 interface ConfidenceSliderProps {
@@ -12,6 +13,7 @@ interface ConfidenceSliderProps {
  * 点选式，1=很不确定 5=很确定。
  */
 export function ConfidenceSlider({ value, onChange }: ConfidenceSliderProps) {
+  const { t } = useT();
   return (
     <div className="flex items-center gap-2">
       {[1, 2, 3, 4, 5].map((n) => (
@@ -30,7 +32,7 @@ export function ConfidenceSlider({ value, onChange }: ConfidenceSliderProps) {
         </button>
       ))}
       <span className="ml-2 text-caption text-muted">
-        {value ? `信心 ${value}/5` : "未评分"}
+        {value ? t("form.confidenceScore", { n: value }) : t("form.notScored")}
       </span>
     </div>
   );

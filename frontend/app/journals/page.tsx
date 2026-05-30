@@ -6,21 +6,23 @@ import { LockBadge } from "@/components/forms/lock-badge";
 import { Card } from "@/components/ui/card";
 import { EMOTIONS } from "@/components/forms/emotion-picker";
 import { formatDate } from "@/lib/format";
+import { useT, type TFunc } from "@/lib/i18n/use-t";
 import { useJournals } from "@/lib/hooks/use-portfolio";
 
-function emotionLabel(value?: string | null) {
+function emotionLabel(t: TFunc, value?: string | null) {
   const e = EMOTIONS.find((x) => x.value === value);
-  return e ? `${e.emoji} ${e.label}` : value || "—";
+  return e ? `${e.emoji} ${t(`form.emotion.${e.value}`)}` : value || "—";
 }
 
 export default function JournalsPage() {
+  const { t } = useT();
   const { data: journals, isLoading } = useJournals();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">决策日志</h1>
-        <p className="text-small text-secondary">每笔交易当时的决策记录，锁定后只读。</p>
+        <h1 className="text-h1 text-primary">{t("journals.title")}</h1>
+        <p className="text-small text-secondary">{t("journals.subtitle")}</p>
       </div>
 
       {isLoading ? (
@@ -30,7 +32,7 @@ export default function JournalsPage() {
           ))}
         </div>
       ) : !journals || journals.length === 0 ? (
-        <Card className="p-12 text-center text-secondary">还没有决策日志。</Card>
+        <Card className="p-12 text-center text-secondary">{t("journals.empty")}</Card>
       ) : (
         <div className="space-y-3">
           {journals.map((j) => (
@@ -45,7 +47,7 @@ export default function JournalsPage() {
                       {j.thesis_category && (
                         <span className="text-caption text-secondary">{j.thesis_category}</span>
                       )}
-                      <span className="text-caption text-muted">{emotionLabel(j.emotion)}</span>
+                      <span className="text-caption text-muted">{emotionLabel(t, j.emotion)}</span>
                     </div>
                     <p className="line-clamp-2 text-small text-primary">{j.thesis}</p>
                     <p className="text-caption text-muted">{formatDate(j.created_at)}</p>

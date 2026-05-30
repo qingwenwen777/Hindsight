@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 
 interface PeriodReport {
   period: string;
@@ -30,6 +31,7 @@ interface FailureCase {
 }
 
 export default function ReportsPage() {
+  const { t } = useT();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -48,13 +50,13 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">报表中心</h1>
-        <p className="text-small text-secondary">月度交易汇总与失败案例库。</p>
+        <h1 className="text-h1 text-primary">{t("reports.title")}</h1>
+        <p className="text-small text-secondary">{t("reports.subtitle")}</p>
       </div>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>月度报表</CardTitle>
+          <CardTitle>{t("reports.monthly")}</CardTitle>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -71,19 +73,19 @@ export default function ReportsPage() {
               onChange={(e) => setMonth(Number(e.target.value))}
             />
             <Button size="sm" onClick={() => refetch()}>
-              查询
+              {t("reports.query")}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           {report ? (
             <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
-              <Stat label="买入笔数" value={String(report.buy_count)} />
-              <Stat label="卖出笔数" value={String(report.sell_count)} />
-              <Stat label="交易标的数" value={String(report.symbols_traded.length)} />
-              <Stat label="买入金额" value={formatMoney(report.total_buy_amount)} />
-              <Stat label="卖出金额" value={formatMoney(report.total_sell_amount)} />
-              <Stat label="总手续费" value={formatMoney(report.total_fees)} />
+              <Stat label={t("reports.buyCount")} value={String(report.buy_count)} />
+              <Stat label={t("reports.sellCount")} value={String(report.sell_count)} />
+              <Stat label={t("reports.symbolsTraded")} value={String(report.symbols_traded.length)} />
+              <Stat label={t("reports.buyAmount")} value={formatMoney(report.total_buy_amount)} />
+              <Stat label={t("reports.sellAmount")} value={formatMoney(report.total_sell_amount)} />
+              <Stat label={t("reports.totalFees")} value={formatMoney(report.total_fees)} />
             </div>
           ) : (
             <div className="h-24 animate-pulse rounded-md bg-elevated" />
@@ -93,20 +95,20 @@ export default function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>失败案例库（买入后 30 天亏损 &gt; 5%）</CardTitle>
+          <CardTitle>{t("reports.failureLib")}</CardTitle>
         </CardHeader>
         <CardContent>
           {!failures || failures.length === 0 ? (
-            <p className="py-6 text-center text-small text-secondary">暂无失败案例（或数据不足）。</p>
+            <p className="py-6 text-center text-small text-secondary">{t("reports.noFailures")}</p>
           ) : (
             <table className="w-full text-small">
               <thead>
                 <tr className="border-b border-border-subtle text-caption text-secondary">
-                  <th className="px-2 py-2 text-left">标的</th>
-                  <th className="px-2 py-2 text-left">日期</th>
-                  <th className="px-2 py-2 text-right">30天回报</th>
-                  <th className="px-2 py-2 text-left">情绪</th>
-                  <th className="px-2 py-2 text-left">逻辑</th>
+                  <th className="px-2 py-2 text-left">{t("reports.col.symbol")}</th>
+                  <th className="px-2 py-2 text-left">{t("reports.col.date")}</th>
+                  <th className="px-2 py-2 text-right">{t("reports.col.return30d")}</th>
+                  <th className="px-2 py-2 text-left">{t("reports.col.emotion")}</th>
+                  <th className="px-2 py-2 text-left">{t("reports.col.thesis")}</th>
                 </tr>
               </thead>
               <tbody>

@@ -1,8 +1,9 @@
 "use client";
 
+import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
 
-/** 情绪选项（设计文档 8.5 <EmotionPicker>）。 */
+/** 情绪选项（设计文档 8.5 <EmotionPicker>）。label 为中文回退，UI 用 i18n key。 */
 export const EMOTIONS = [
   { value: "CALM", emoji: "😐", label: "冷静" },
   { value: "HESITANT", emoji: "🤔", label: "犹豫" },
@@ -17,6 +18,7 @@ interface EmotionPickerProps {
 }
 
 export function EmotionPicker({ value, onChange }: EmotionPickerProps) {
+  const { t } = useT();
   return (
     <div className="flex flex-wrap gap-2">
       {EMOTIONS.map((e) => (
@@ -32,7 +34,7 @@ export function EmotionPicker({ value, onChange }: EmotionPickerProps) {
           )}
         >
           <span className="text-lg">{e.emoji}</span>
-          <span className="text-caption">{e.label}</span>
+          <span className="text-caption">{t(`form.emotion.${e.value}`)}</span>
         </button>
       ))}
     </div>

@@ -7,15 +7,16 @@ import { DonutExposure } from "@/components/charts/donut-exposure";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
-
-const DIMENSIONS = [
-  { key: "industry", label: "行业" },
-  { key: "market", label: "市场" },
-  { key: "currency", label: "币种" },
-];
+import { useT } from "@/lib/i18n/use-t";
 
 export default function ExposurePage() {
+  const { t } = useT();
   const [dim, setDim] = useState("industry");
+  const DIMENSIONS = [
+    { key: "industry", label: t("exposure.industry") },
+    { key: "market", label: t("exposure.market") },
+    { key: "currency", label: t("exposure.currency") },
+  ];
   const { data } = useQuery({
     queryKey: ["exposure", dim],
     queryFn: async () => (await api.get<any>(`/portfolio/exposure?dimension=${dim}`)).data,
@@ -29,8 +30,8 @@ export default function ExposurePage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-h1 text-primary">暴露分析</h1>
-          <p className="text-small text-secondary">行业/市场/币种维度暴露与集中度。</p>
+          <h1 className="text-h1 text-primary">{t("exposure.title")}</h1>
+          <p className="text-small text-secondary">{t("exposure.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           {DIMENSIONS.map((d) => (
@@ -51,7 +52,7 @@ export default function ExposurePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{DIMENSIONS.find((d) => d.key === dim)?.label}暴露</CardTitle>
+          <CardTitle>{t("exposure.dimExposure", { dim: DIMENSIONS.find((d) => d.key === dim)?.label ?? "" })}</CardTitle>
         </CardHeader>
         <CardContent>
           <DonutExposure slices={data?.slices ?? []} />

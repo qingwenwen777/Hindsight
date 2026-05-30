@@ -5,29 +5,31 @@ import Link from "next/link";
 import { PnL } from "@/components/stats/pnl";
 import { Card } from "@/components/ui/card";
 import { formatMoney, formatQuantity } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
 
 export default function HoldingsPage() {
+  const { t } = useT();
   const { data: holdings, isLoading } = useHoldings();
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">持仓</h1>
-        <p className="text-small text-secondary">FIFO 成本口径，浮盈基于最新收盘价。</p>
+        <h1 className="text-h1 text-primary">{t("holdings.title")}</h1>
+        <p className="text-small text-secondary">{t("holdings.subtitle")}</p>
       </div>
 
       <Card className="overflow-hidden">
         <table className="w-full text-small">
           <thead>
             <tr className="border-b border-border-subtle text-caption text-secondary">
-              <th className="px-4 py-3 text-left">标的</th>
-              <th className="px-4 py-3 text-right">持股</th>
-              <th className="px-4 py-3 text-right">均价</th>
-              <th className="px-4 py-3 text-right">现价</th>
-              <th className="px-4 py-3 text-right">市值</th>
-              <th className="px-4 py-3 text-right">浮动盈亏</th>
-              <th className="px-4 py-3 text-right">已实现</th>
+              <th className="px-4 py-3 text-left">{t("holdings.col.symbol")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.shares")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.avgCost")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.price")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.marketValue")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.unrealized")}</th>
+              <th className="px-4 py-3 text-right">{t("holdings.col.realized")}</th>
             </tr>
           </thead>
           <tbody>
@@ -42,9 +44,9 @@ export default function HoldingsPage() {
             ) : !holdings || holdings.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-secondary">
-                  暂无持仓，
+                  {t("holdings.empty")}
                   <Link href="/transactions/new" className="text-primary underline underline-offset-2 hover:text-secondary">
-                    去录入
+                    {t("holdings.goRecord")}
                   </Link>
                 </td>
               </tr>

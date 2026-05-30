@@ -2,6 +2,8 @@
 
 import { Cell, Legend, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 
+import { useT } from "@/lib/i18n/use-t";
+
 interface ExposureSlice {
   key: string;
   name: string;
@@ -19,13 +21,14 @@ const PALETTE = ["#2962FF", "#26A69A", "#FF9800", "#AB47BC", "#EF5350", "#42A5F5
 
 /** 暴露/集中度环形图（设计文档 8.6）。超阈值切片用警告色描边。 */
 export function DonutExposure({ slices, height = 280 }: DonutExposureProps) {
+  const { t } = useT();
   if (!slices || slices.length === 0) {
     return (
       <div
         className="flex items-center justify-center rounded-md border border-dashed border-border-subtle text-secondary"
         style={{ height }}
       >
-        暂无持仓数据
+        {t("exposure.noData")}
       </div>
     );
   }

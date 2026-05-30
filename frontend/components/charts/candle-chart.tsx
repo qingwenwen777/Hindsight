@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 
 import type { PriceBar, IndicatorData } from "@/lib/hooks/use-stock";
 import type { Transaction } from "@/lib/api/types";
+import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
 
 interface PriceLine {
@@ -55,6 +56,7 @@ export function CandleChart({
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const colorScheme = useUiStore((s) => s.colorScheme);
+  const { t } = useT();
 
   useEffect(() => {
     if (!containerRef.current || prices.length === 0) return;
@@ -213,7 +215,7 @@ export function CandleChart({
         className="flex items-center justify-center rounded-md border border-border-default bg-base text-tertiary"
         style={{ height }}
       >
-        暂无行情数据，请先在管理页同步该股票
+        {t("stock.noPriceData")}
       </div>
     );
   }

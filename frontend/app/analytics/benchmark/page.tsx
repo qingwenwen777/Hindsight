@@ -8,10 +8,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
 import { formatPercent, pnlDirection } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 
 const MARKETS = ["US", "CN", "HK", "JP"];
 
 export default function BenchmarkPage() {
+  const { t } = useT();
   const [market, setMarket] = useState("US");
   const { data } = useQuery({
     queryKey: ["benchmark", market],
@@ -23,8 +25,8 @@ export default function BenchmarkPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-h1 text-primary">基准对比</h1>
-          <p className="text-small text-secondary">组合 vs 基准的 alpha / 信息比率 / 跟踪误差 / β。</p>
+          <h1 className="text-h1 text-primary">{t("benchmark.title")}</h1>
+          <p className="text-small text-secondary">{t("benchmark.subtitle")}</p>
         </div>
         <div className="flex gap-2">
           {MARKETS.map((m) => (
@@ -38,21 +40,25 @@ export default function BenchmarkPage() {
       {!data?.available ? (
         <Card>
           <CardContent className="p-8 text-center text-secondary">
-            {data?.message ?? "加载中…"}
+            {data?.message ?? t("common.loading")}
           </CardContent>
         </Card>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Stat label="组合收益" value={formatPercent((data.portfolio_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.portfolio_return)} />
-            <Stat label="基准收益" value={formatPercent((data.benchmark_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.benchmark_return)} />
-            <Stat label="Alpha（年化）" value={formatPercent((data.alpha ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.alpha)} />
-            <Stat label="Beta" value={data.beta?.toFixed(2) ?? "—"} />
-            <Stat label="信息比率" value={data.information_ratio?.toFixed(2) ?? "—"} />
-            <Stat label="跟踪误差" value={formatPercent((data.tracking_error ?? 0) * 100)} />
+            <Stat label={t("benchmark.portfolioReturn")} value={formatPercent((data.portfolio_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.portfolio_return)} />
+            <Stat label={t("benchmark.benchmarkReturn")} value={formatPercent((data.benchmark_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.benchmark_return)} />
+            <Stat label={t("benchmark.alpha")} value={formatPercent((data.alpha ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.alpha)} />
+            <Stat label={t("benchmark.beta")} value={data.beta?.toFixed(2) ?? "—"} />
+            <Stat label={t("benchmark.infoRatio")} value={data.information_ratio?.toFixed(2) ?? "—"} />
+            <Stat label={t("benchmark.trackingError")} value={formatPercent((data.tracking_error ?? 0) * 100)} />
           </div>
           <p className="text-caption text-muted">
-            基准：{data.benchmark?.name}（{data.benchmark?.symbol}）· 样本 {data.samples} 个交易日
+            {t("benchmark.footnote", {
+              name: data.benchmark?.name ?? "",
+              symbol: data.benchmark?.symbol ?? "",
+              samples: data.samples ?? 0,
+            })}
           </p>
         </>
       )}

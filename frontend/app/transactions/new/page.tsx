@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import { useCooldownCheck } from "@/lib/hooks/use-biases";
 import {
   useCreateStock,
@@ -28,6 +29,7 @@ const MIN_THESIS = 100;
 
 export default function NewTransactionPage() {
   const router = useRouter();
+  const { t } = useT();
   const createTx = useCreateTransaction();
   const cooldownCheck = useCooldownCheck();
 
@@ -122,48 +124,48 @@ export default function NewTransactionPage() {
     };
     createTx.mutate(payload, {
       onSuccess: () => router.push("/"),
-      onError: (e) => setError(e instanceof ApiError ? e.message : "提交失败，请重试"),
+      onError: (e) => setError(e instanceof ApiError ? e.message : t("newTx.submitFailed")),
     });
   };
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div>
-        <h1 className="text-h1 text-primary">录入交易</h1>
+        <h1 className="text-h1 text-primary">{t("newTx.title")}</h1>
         <p className="text-small text-secondary">
-          每笔交易强制关联决策日志，提交前有 30 秒冷静期。
+          {t("newTx.subtitle")}
         </p>
       </div>
 
       {/* 步骤指示 */}
       <div className="flex items-center gap-2 text-small">
-        <span className={step === 1 ? "text-accent" : "text-secondary"}>① 交易信息</span>
+        <span className={step === 1 ? "text-accent" : "text-secondary"}>{t("newTx.step1")}</span>
         <span className="text-muted">→</span>
-        <span className={step === 2 ? "text-accent" : "text-secondary"}>② 决策日志</span>
+        <span className={step === 2 ? "text-accent" : "text-secondary"}>{t("newTx.step2")}</span>
       </div>
 
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>交易信息</CardTitle>
+            <CardTitle>{t("newTx.txInfo")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* 股票搜索 */}
             <div className="space-y-1">
-              <Label>股票</Label>
+              <Label>{t("newTx.stock")}</Label>
               {stock ? (
                 <div className="flex items-center justify-between rounded-md border border-border-subtle bg-base px-3 py-2">
                   <span className="text-small text-primary">
                     {stock.name} <span className="tnum text-secondary">({stock.symbol})</span>
                   </span>
                   <Button variant="ghost" size="sm" onClick={() => setStock(null)}>
-                    更换
+                    {t("newTx.change")}
                   </Button>
                 </div>
               ) : (
                 <div className="relative">
                   <Input
-                    placeholder="输入代码或名称搜索…"
+                    placeholder={t("newTx.searchPlaceholder")}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -190,7 +192,7 @@ export default function NewTransactionPage() {
                     <div className="absolute z-10 mt-1 w-full rounded-md border border-border-subtle bg-elevated shadow-lg">
                       {(discovered ?? []).length > 0 && (
                         <p className="px-3 pt-2 text-caption text-tertiary">
-                          本地未登记，从数据源发现：
+                          {t("newTx.discoverHint")}
                         </p>
                       )}
                       {(discovered ?? []).map((c) => {
@@ -205,14 +207,14 @@ export default function NewTransactionPage() {
                           >
                             <span>{c.name}</span>
                             <span className="tnum text-secondary">
-                              {adding === key ? "添加中…" : `${c.symbol} · ${c.market}`}
+                              {adding === key ? t("newTx.adding") : `${c.symbol} · ${c.market}`}
                             </span>
                           </button>
                         );
                       })}
                       {(discovered ?? []).length === 0 && (
                         <p className="px-3 py-2 text-small text-tertiary">
-                          {discovering ? "正在从数据源搜索…" : "未找到匹配股票。"}
+                          {discovering ? t("newTx.searching") : t("newTx.notFound")}
                         </p>
                       )}
                     </div>
@@ -223,26 +225,26 @@ export default function NewTransactionPage() {
 
             {/* 方向 */}
             <div className="space-y-1">
-              <Label>方向</Label>
+              <Label>{t("newTx.side")}</Label>
               <div className="flex gap-2">
                 <Button
                   variant={side === "BUY" ? "up" : "outline"}
                   onClick={() => setSide("BUY")}
                 >
-                  买入
+                  {t("newTx.buy")}
                 </Button>
                 <Button
                   variant={side === "SELL" ? "down" : "outline"}
                   onClick={() => setSide("SELL")}
                 >
-                  卖出
+                  {t("newTx.sell")}
                 </Button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>数量</Label>
+                <Label>{t("newTx.qty")}</Label>
                 <Input
                   type="number"
                   className="tnum"
@@ -251,7 +253,7 @@ export default function NewTransactionPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>价格</Label>
+                <Label>{t("newTx.price")}</Label>
                 <Input
                   type="number"
                   className="tnum"
@@ -262,7 +264,7 @@ export default function NewTransactionPage() {
             </div>
 
             <div className="space-y-1">
-              <Label>交易日期</Label>
+              <Label>{t("newTx.tradeDate")}</Label>
               <Input
                 type="date"
                 className="tnum"
@@ -274,12 +276,12 @@ export default function NewTransactionPage() {
             {/* 预览 */}
             <div className="rounded-md border border-border-subtle bg-base p-3 text-small">
               <div className="flex justify-between">
-                <span className="text-secondary">预估成交额</span>
+                <span className="text-secondary">{t("newTx.estAmount")}</span>
                 <span className="tnum text-primary">
                   {stock ? formatMoney(amount, stock.currency) : "—"}
                 </span>
               </div>
-              <p className="mt-2 text-caption text-muted">手续费将在提交时由后端按市场规则自动计算。</p>
+              <p className="mt-2 text-caption text-muted">{t("newTx.feeNote")}</p>
             </div>
 
             <div className="flex justify-end">
@@ -306,7 +308,7 @@ export default function NewTransactionPage() {
                   );
                 }}
               >
-                {cooldownCheck.isPending ? "检测中…" : "下一步：决策日志"}
+                {cooldownCheck.isPending ? t("newTx.checking") : t("newTx.nextStep")}
               </Button>
             </div>
           </CardContent>
@@ -316,19 +318,19 @@ export default function NewTransactionPage() {
       {step === 2 && (
         <Card>
           <CardHeader>
-            <CardTitle>决策日志（全部必填核心字段）</CardTitle>
+            <CardTitle>{t("newTx.journalTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* 防御告警（复仇交易 / 持有时间） */}
             <ConcentrationAlert warnings={defenseWarnings} />
             {requireAiConfirm && (
               <p className="text-small text-warn">
-                检测到疑似复仇交易，冷静期已延长至 {Math.round(cooldownSeconds / 60)} 分钟，建议先用 AI 复盘确认。
+                {t("newTx.revengeWarn", { min: Math.round(cooldownSeconds / 60) })}
               </p>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <Label>决策类型</Label>
+                <Label>{t("newTx.decisionType")}</Label>
                 <Select
                   value={decisionType}
                   onValueChange={setDecisionType}
@@ -336,7 +338,7 @@ export default function NewTransactionPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>论点类别</Label>
+                <Label>{t("newTx.thesisCategory")}</Label>
                 <Select
                   value={thesisCategory}
                   onValueChange={setThesisCategory}
@@ -347,7 +349,7 @@ export default function NewTransactionPage() {
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
-                <Label>预期持有</Label>
+                <Label>{t("newTx.expectedHorizon")}</Label>
                 <Select
                   value={horizon}
                   onValueChange={setHorizon}
@@ -355,33 +357,33 @@ export default function NewTransactionPage() {
                 />
               </div>
               <div className="space-y-1">
-                <Label>目标价</Label>
+                <Label>{t("newTx.targetPrice")}</Label>
                 <Input className="tnum" value={targetPrice} onChange={(e) => setTargetPrice(e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label>止损价</Label>
+                <Label>{t("newTx.stopLoss")}</Label>
                 <Input className="tnum" value={stopLoss} onChange={(e) => setStopLoss(e.target.value)} />
               </div>
             </div>
 
             <div className="space-y-1">
-              <Label>退出条件</Label>
+              <Label>{t("newTx.exitCondition")}</Label>
               <Input value={exitCondition} onChange={(e) => setExitCondition(e.target.value)} />
             </div>
 
             <div className="space-y-1">
-              <Label>信心评分</Label>
+              <Label>{t("newTx.confidence")}</Label>
               <ConfidenceSlider value={confidence} onChange={setConfidence} />
             </div>
 
             <div className="space-y-1">
-              <Label>当前情绪</Label>
+              <Label>{t("newTx.emotion")}</Label>
               <EmotionPicker value={emotion} onChange={setEmotion} />
             </div>
 
             <div className="space-y-1">
               <div className="flex items-center justify-between">
-                <Label>投资逻辑（≥ {MIN_THESIS} 字）</Label>
+                <Label>{t("newTx.thesis", { min: MIN_THESIS })}</Label>
                 <span className={`text-caption ${thesisValid ? "text-up" : "text-muted"}`}>
                   {thesis.trim().length}/{MIN_THESIS}
                 </span>
@@ -390,12 +392,12 @@ export default function NewTransactionPage() {
                 rows={5}
                 value={thesis}
                 onChange={(e) => setThesis(e.target.value)}
-                placeholder="为什么做这笔交易？逻辑、催化剂、估值依据…"
+                placeholder={t("newTx.thesisPlaceholder")}
               />
             </div>
 
             <div className="space-y-1">
-              <Label>主要风险</Label>
+              <Label>{t("newTx.risks")}</Label>
               <Textarea rows={2} value={risks} onChange={(e) => setRisks(e.target.value)} />
             </div>
 
@@ -403,7 +405,7 @@ export default function NewTransactionPage() {
 
             <div className="flex items-center justify-between">
               <Button variant="ghost" onClick={() => setStep(1)}>
-                上一步
+                {t("newTx.prevStep")}
               </Button>
               <CooldownButton
                 seconds={cooldownSeconds}
@@ -413,7 +415,7 @@ export default function NewTransactionPage() {
               />
             </div>
             {!thesisValid && (
-              <p className="text-caption text-muted">投资逻辑需至少 {MIN_THESIS} 字才能提交。</p>
+              <p className="text-caption text-muted">{t("newTx.thesisHint", { min: MIN_THESIS })}</p>
             )}
           </CardContent>
         </Card>

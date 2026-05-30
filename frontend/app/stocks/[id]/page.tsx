@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
 import { formatMoney, formatQuantity, pnlDirection } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
 import {
   useFinancials,
@@ -25,6 +26,7 @@ import type { Holding, Journal } from "@/lib/api/types";
 const RANGES = ["1M", "3M", "6M", "1Y", "All"] as const;
 
 export default function StockDetailPage() {
+  const { t } = useT();
   const params = useParams();
   const id = Number(params.id);
   const { data: stock } = useStock(id);
@@ -73,10 +75,10 @@ export default function StockDetailPage() {
   const priceLines = useMemo(() => {
     const latest = (journals ?? []).find((j) => j.target_price || j.stop_loss_price);
     const lines: { price: number; color: string; title: string }[] = [];
-    if (latest?.target_price) lines.push({ price: Number(latest.target_price), color: "#d9a441", title: `目标 ${latest.target_price}` });
-    if (latest?.stop_loss_price) lines.push({ price: Number(latest.stop_loss_price), color: "#f05b5b", title: `止损 ${latest.stop_loss_price}` });
+    if (latest?.target_price) lines.push({ price: Number(latest.target_price), color: "#d9a441", title: t("stock.target", { price: latest.target_price }) });
+    if (latest?.stop_loss_price) lines.push({ price: Number(latest.stop_loss_price), color: "#f05b5b", title: t("stock.stop", { price: latest.stop_loss_price }) });
     return lines;
-  }, [journals]);
+  }, [journals, t]);
 
   const dir = pnlDirection(dayChange);
 
@@ -95,7 +97,7 @@ export default function StockDetailPage() {
                 </span>
               )}
             </div>
-            <p className="mt-2 text-meta text-tertiary">K 线与个人决策日志联动视图</p>
+            <p className="mt-2 text-meta text-tertiary">{t("stock.linkedView")}</p>
           </div>
           <div className="text-left sm:text-right">
             <div className="tnum text-kpi text-primary">
@@ -116,7 +118,7 @@ export default function StockDetailPage() {
                 }
               >
                 <Star className={cn("h-3.5 w-3.5", isWatched && "fill-current text-warn")} />
-                {isWatched ? "已关注" : "关注"}
+                {isWatched ? t("stock.watched") : t("stock.watch")}
               </Button>
             </div>
           </div>
@@ -124,18 +126,18 @@ export default function StockDetailPage() {
 
         {/* 快速指标条 */}
         <div className="grid grid-cols-2 gap-px bg-border-subtle sm:grid-cols-5">
-          <Metric label="Cost" value={holding ? formatMoney(holding.avg_cost, holding.currency) : "—"} />
-          <Metric label="Shares" value={holding ? formatQuantity(holding.shares) : "—"} />
+          <Metric label={t("stock.cost")} value={holding ? formatMoney(holding.avg_cost, holding.currency) : "—"} />
+          <Metric label={t("stock.shares")} value={holding ? formatQuantity(holding.shares) : "—"} />
           <Metric
-            label="Market Value"
+            label={t("stock.marketValue")}
             value={holding ? formatMoney(holding.market_value ?? holding.cost_basis, holding.currency) : "—"}
           />
           <Metric
-            label="Unrealized P/L"
+            label={t("stock.unrealizedPnl")}
             value={holding && holding.unrealized_pnl != null ? formatMoney(holding.unrealized_pnl, holding.currency, { sign: true }) : "—"}
             direction={holding ? pnlDirection(holding.unrealized_pnl) : "flat"}
           />
-          <Metric label="Realized P/L" value={holding ? formatMoney(holding.realized_pnl, holding.currency, { sign: true }) : "—"} direction={holding ? pnlDirection(holding.realized_pnl) : "flat"} />
+          <Metric label={t("stock.realizedPnl")} value={holding ? formatMoney(holding.realized_pnl, holding.currency, { sign: true }) : "—"} direction={holding ? pnlDirection(holding.realized_pnl) : "flat"} />
         </div>
 
         {/* 财务/估值 */}
@@ -143,16 +145,16 @@ export default function StockDetailPage() {
           <Metric label="PE" value={fmtRatio(financials?.pe)} />
           <Metric label="PB" value={fmtRatio(financials?.pb)} />
           <Metric label="ROE(TTM)" value={fmtPct(financials?.roe)} />
-          <Metric label="营收 YoY" value={fmtPct(financials?.revenue_yoy)} direction={dirOf(financials?.revenue_yoy)} />
-          <Metric label="净利 YoY" value={fmtPct(financials?.profit_yoy)} direction={dirOf(financials?.profit_yoy)} />
+          <Metric label={t("stock.revenueYoy")} value={fmtPct(financials?.revenue_yoy)} direction={dirOf(financials?.revenue_yoy)} />
+          <Metric label={t("stock.profitYoy")} value={fmtPct(financials?.profit_yoy)} direction={dirOf(financials?.profit_yoy)} />
           <Metric label="EPS" value={fmtRatio(financials?.eps)} />
-          <Metric label="股息率" value={fmtPct(financials?.dividend_yield)} />
+          <Metric label={t("stock.dividendYield")} value={fmtPct(financials?.dividend_yield)} />
         </div>
 
         {/* 主图 */}
         <div className="p-6">
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-title font-medium text-primary">Price Action + Decision Marks</h2>
+            <h2 className="text-title font-medium text-primary">{t("stock.priceAction")}</h2>
             <div className="flex gap-1.5">
               {RANGES.map((r) => (
                 <button
@@ -183,7 +185,7 @@ export default function StockDetailPage() {
 
           {/* 副图 */}
           <div className="mt-3 flex items-center justify-between">
-            <h2 className="text-title font-medium text-primary">副图</h2>
+            <h2 className="text-title font-medium text-primary">{t("stock.subPanel")}</h2>
             <div className="flex gap-1.5">
               {(["MACD", "RSI"] as const).map((t) => (
                 <button
@@ -210,29 +212,29 @@ export default function StockDetailPage() {
           {/* 决策日志 rail */}
           <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
             {(txs ?? []).length === 0 ? (
-              <p className="text-meta text-tertiary">无关联交易</p>
+              <p className="text-meta text-tertiary">{t("stock.noLinkedTx")}</p>
             ) : (
-              (txs ?? []).map((t) => (
+              (txs ?? []).map((tx) => (
                 <div
-                  key={t.id}
+                  key={tx.id}
                   className="min-w-[300px] rounded-lg border border-border-default bg-base p-4"
                 >
                   <div className="flex items-center justify-between">
                     <span
                       className={cn(
                         "rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium",
-                        t.type === "BUY" ? "text-up" : "text-down",
+                        tx.type === "BUY" ? "text-up" : "text-down",
                       )}
                     >
-                      {t.type}
+                      {tx.type}
                     </span>
                     <span className="tnum text-meta text-tertiary">
-                      {t.trade_date} @ {Number(t.price)}
+                      {tx.trade_date} @ {Number(tx.price)}
                     </span>
                   </div>
                   <div className="mt-3 grid grid-cols-2 gap-2.5">
-                    <Mini label="数量" value={formatQuantity(t.quantity)} />
-                    <Mini label="金额" value={formatMoney(Number(t.quantity) * Number(t.price), t.currency)} />
+                    <Mini label={t("stock.qty")} value={formatQuantity(tx.quantity)} />
+                    <Mini label={t("stock.amount")} value={formatMoney(Number(tx.quantity) * Number(tx.price), tx.currency)} />
                   </div>
                 </div>
               ))

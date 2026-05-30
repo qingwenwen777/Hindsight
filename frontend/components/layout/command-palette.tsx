@@ -21,25 +21,26 @@ import { useEffect, useState } from "react";
 
 import { api } from "@/lib/api/client";
 import type { DiscoverCandidate, Stock } from "@/lib/api/types";
+import { useT } from "@/lib/i18n/use-t";
 
 interface NavCmd {
-  label: string;
+  labelKey: string;
   href: string;
   icon: typeof LayoutDashboard;
 }
 
 const NAV_COMMANDS: NavCmd[] = [
-  { label: "新建交易", href: "/transactions/new", icon: PlusCircle },
-  { label: "仪表盘", href: "/", icon: LayoutDashboard },
-  { label: "持仓", href: "/portfolio/holdings", icon: Wallet },
-  { label: "关注列表", href: "/watchlist", icon: Star },
-  { label: "交易记录", href: "/transactions", icon: CandlestickChart },
-  { label: "收益分析", href: "/analytics/returns", icon: TrendingUp },
-  { label: "基准对比", href: "/analytics/benchmark", icon: GitCompareArrows },
-  { label: "暴露分析", href: "/analytics/exposure", icon: PieChart },
-  { label: "情绪审计", href: "/analytics/emotion", icon: Heart },
-  { label: "AI 对话", href: "/ai/chat", icon: Bot },
-  { label: "设置", href: "/settings", icon: Settings },
+  { labelKey: "nav.newTransaction", href: "/transactions/new", icon: PlusCircle },
+  { labelKey: "nav.dashboard", href: "/", icon: LayoutDashboard },
+  { labelKey: "nav.holdings", href: "/portfolio/holdings", icon: Wallet },
+  { labelKey: "nav.watchlist", href: "/watchlist", icon: Star },
+  { labelKey: "nav.transactions", href: "/transactions", icon: CandlestickChart },
+  { labelKey: "nav.returns", href: "/analytics/returns", icon: TrendingUp },
+  { labelKey: "nav.benchmark", href: "/analytics/benchmark", icon: GitCompareArrows },
+  { labelKey: "nav.exposure", href: "/analytics/exposure", icon: PieChart },
+  { labelKey: "nav.emotion", href: "/analytics/emotion", icon: Heart },
+  { labelKey: "nav.aiChat", href: "/ai/chat", icon: Bot },
+  { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];
 
 /**
@@ -48,6 +49,7 @@ const NAV_COMMANDS: NavCmd[] = [
  */
 export function CommandPalette() {
   const router = useRouter();
+  const { t } = useT();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -149,18 +151,18 @@ export function CommandPalette() {
             autoFocus
             value={query}
             onValueChange={setQuery}
-            placeholder="跳转页面 / 搜索股票 / 新建交易…"
+            placeholder={t("cmd.placeholder")}
             className="h-12 w-full bg-transparent text-body text-primary outline-none placeholder:text-tertiary"
           />
           <kbd className="rounded border border-border-default px-1.5 py-0.5 text-caption text-tertiary">ESC</kbd>
         </div>
         <Command.List className="max-h-[360px] overflow-y-auto p-2">
           <Command.Empty className="px-3 py-6 text-center text-meta text-tertiary">
-            无匹配项
+            {t("cmd.noMatch")}
           </Command.Empty>
 
           {stocks.length > 0 && (
-            <Command.Group heading="股票" className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+            <Command.Group heading={t("cmd.stocks")} className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
               {stocks.map((s) => (
                 <Command.Item
                   key={s.id}
@@ -176,7 +178,7 @@ export function CommandPalette() {
           )}
 
           {stocks.length === 0 && discovered.length > 0 && (
-            <Command.Group heading="从数据源发现（添加并同步）" className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+            <Command.Group heading={t("cmd.discoverGroup")} className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
               {discovered.map((c) => {
                 const key = `${c.market}:${c.symbol}`;
                 return (
@@ -191,7 +193,7 @@ export function CommandPalette() {
                       {c.name}
                     </span>
                     <span className="tnum text-caption text-tertiary">
-                      {adding === key ? "添加中…" : `${c.symbol} · ${c.market}`}
+                      {adding === key ? t("cmd.adding") : `${c.symbol} · ${c.market}`}
                     </span>
                   </Command.Item>
                 );
@@ -199,9 +201,9 @@ export function CommandPalette() {
             </Command.Group>
           )}
 
-          <Command.Group heading="导航" className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
+          <Command.Group heading={t("cmd.nav")} className="px-1 text-caption text-tertiary [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1.5">
             {NAV_COMMANDS.filter(
-              (c) => query.trim() === "" || c.label.toLowerCase().includes(query.toLowerCase()),
+              (c) => query.trim() === "" || t(c.labelKey).toLowerCase().includes(query.toLowerCase()),
             ).map((c) => {
               const Icon = c.icon;
               return (
@@ -212,7 +214,7 @@ export function CommandPalette() {
                   className="flex cursor-pointer items-center gap-3 rounded-md px-3 py-2 text-body text-secondary data-[selected=true]:bg-base data-[selected=true]:text-primary"
                 >
                   <Icon className="h-4 w-4" />
-                  {c.label}
+                  {t(c.labelKey)}
                 </Command.Item>
               );
             })}

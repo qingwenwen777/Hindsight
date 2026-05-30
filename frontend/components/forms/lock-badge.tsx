@@ -1,6 +1,9 @@
+"use client";
+
 import { Lock } from "lucide-react";
 
 import { formatDate } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 
 interface LockBadgeProps {
   lockedAt?: string | null;
@@ -11,10 +14,11 @@ interface LockBadgeProps {
  * 明示不可改。
  */
 export function LockBadge({ lockedAt }: LockBadgeProps) {
+  const { t } = useT();
   return (
     <span className="inline-flex items-center gap-1 rounded-sm bg-elevated px-2 py-1 text-caption text-secondary">
       <Lock className="h-3 w-3" />
-      已锁定{lockedAt ? ` · ${formatDate(lockedAt)}` : ""}
+      {t("form.locked")}{lockedAt ? ` · ${formatDate(lockedAt)}` : ""}
     </span>
   );
 }

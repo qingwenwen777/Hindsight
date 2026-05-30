@@ -15,6 +15,7 @@ import {
 import { Stat } from "@/components/stats/stat";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
+import { useT } from "@/lib/i18n/use-t";
 import { useEquityCurve, useReturns, useRiskMetrics } from "@/lib/hooks/use-analytics";
 
 const tooltipStyle = {
@@ -26,6 +27,7 @@ const tooltipStyle = {
 };
 
 export default function ReturnsPage() {
+  const { t } = useT();
   const { data: irr } = useReturns("IRR");
   const { data: twr } = useReturns("TWR");
   const { data: risk } = useRiskMetrics();
@@ -41,49 +43,49 @@ export default function ReturnsPage() {
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-display text-secondary">收益分析</h1>
-        <p className="mt-2 text-meta text-tertiary">TWR / IRR / 年化 / 最大回撤 / 夏普 / 卡玛</p>
+        <h1 className="text-display text-secondary">{t("returns.title")}</h1>
+        <p className="mt-2 text-meta text-tertiary">{t("returns.subtitle")}</p>
       </div>
 
       {/* 指标卡 */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Stat
-          label="IRR 年化"
+          label={t("returns.irr")}
           value={irrPct != null ? formatPercent(irrPct, { sign: true }) : "—"}
           colorValue
           direction={pnlDirection(irrPct)}
         />
         <Stat
-          label="TWR"
+          label={t("returns.twr")}
           value={twrPct != null ? formatPercent(twrPct, { sign: true }) : "—"}
           colorValue
           direction={pnlDirection(twrPct)}
         />
         <Stat
-          label="年化收益"
+          label={t("returns.annualized")}
           value={risk?.available ? formatPercent(risk.annualized_return_pct, { sign: true }) : "—"}
           colorValue
           direction={pnlDirection(risk?.annualized_return_pct)}
         />
         <Stat
-          label="最大回撤"
+          label={t("returns.maxDrawdown")}
           value={risk?.available ? formatPercent(risk.max_drawdown_pct) : "—"}
           colorValue
           direction={risk?.max_drawdown_pct ? "down" : "flat"}
         />
-        <Stat label="夏普" value={risk?.available ? String(risk.sharpe) : "—"} />
-        <Stat label="卡玛" value={risk?.available ? String(risk.calmar) : "—"} />
+        <Stat label={t("returns.sharpe")} value={risk?.available ? String(risk.sharpe) : "—"} />
+        <Stat label={t("returns.calmar")} value={risk?.available ? String(risk.calmar) : "—"} />
       </div>
 
       {/* 净值曲线 */}
       <Card>
         <CardHeader>
-          <CardTitle>组合净值（归一化到 100）</CardTitle>
+          <CardTitle>{t("returns.equityNormalized")}</CardTitle>
         </CardHeader>
         <CardContent>
           {equityData.length < 2 ? (
             <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
-              净值数据不足（需持仓 + 已同步行情）
+              {t("returns.equityInsufficient")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
@@ -102,12 +104,12 @@ export default function ReturnsPage() {
       {/* 回撤水下图 */}
       <Card>
         <CardHeader>
-          <CardTitle>回撤水下图</CardTitle>
+          <CardTitle>{t("returns.drawdownChart")}</CardTitle>
         </CardHeader>
         <CardContent>
           {ddData.length < 2 ? (
             <div className="flex h-48 items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
-              暂无回撤数据
+              {t("returns.noDrawdown")}
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
@@ -136,7 +138,7 @@ export default function ReturnsPage() {
       </Card>
 
       <p className="text-caption text-muted">
-        净值曲线用当前持仓股数 × 历史价近似（缺逐日持仓快照时）；IRR 基于现金流精确求解。
+        {t("returns.footnote")}
       </p>
     </div>
   );
