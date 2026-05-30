@@ -145,3 +145,34 @@ def get_indicators(
     types = [t.strip() for t in type.split(",")] if type else None
     indicators = compute_indicators(close, high, low, types)
     return ok({"dates": dates, "indicators": indicators})
+
+
+@router.get("/{stock_id}/financials", summary="财务/估值指标")
+def get_financials(stock_id: int, session: Session = Depends(get_session)) -> dict:
+    """返回某股票最新的财务/估值快照。"""
+    from app.models.financials import Financial
+
+    if not session.get(Stock, stock_id):
+        raise HTTPException(status_code=404, detail="股票不存在")
+    fin = session.exec(
+        select(Financial)
+        .where(Financial.stock_id == stock_id)
+        .order_by(Financial.as_of.desc())
+        .limit(1)
+    ).first()
+    if not fin:
+        return ok(None)
+    return ok(
+        {
+            "as_of": fin.as_of.isoformat(),
+            "pe": to_db_str(fin.pe),
+            "pb": to_db_str(fin.pb),
+            "roe": to_db_str(fin.roe),
+            "revenue_yoy": to_db_str(fin.revenue_yoy),
+            "profit_yoy": to_db_str(fin.profit_yoy),
+            "market_cap": to_db_str(fin.market_cap),
+            "dividend_yield": to_db_str(fin.dividend_yield),
+            "eps": to_db_str(fin.eps),
+            "source": fin.source,
+        }
+    )

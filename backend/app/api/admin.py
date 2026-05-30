@@ -113,3 +113,43 @@ def sync_fx(
     except YFinanceUnavailable as e:
         return ok({"ok": False, "message": str(e)})
     return ok(summary)
+
+
+@router.post("/sync/financials", summary="同步财务/估值指标")
+def sync_financials(
+    market: str | None = Query(None, description="限定市场；空为全部已登记股票"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """拉取财务/估值指标并 UPSERT 到 financials。"""
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
+    from app.models.financials import Financial
+    from app.models.stock import Stock
+    from app.services.data_sync.financials_client import fetch_financials
+    from app.services.data_sync.yfinance_client import YFinanceUnavailable
+
+    stmt = select(Stock)
+    if market:
+        stmt = stmt.where(Stock.market == market.upper())
+    stocks = list(session.exec(stmt).all())
+
+    updated = 0
+    failed: list[str] = []
+    for stock in stocks:
+        try:
+            data = fetch_financials(stock.symbol, stock.market)
+        except YFinanceUnavailable as e:
+            return ok({"ok": False, "message": str(e)})
+        if not data:
+            failed.append(stock.symbol)
+            continue
+        values = {"stock_id": stock.id, **data}
+        ins = sqlite_insert(Financial).values(**values)
+        ins = ins.on_conflict_do_update(
+            index_elements=["stock_id", "as_of"],
+            set_={k: ins.excluded[k] for k in data if k != "as_of"},
+        )
+        session.exec(ins)
+        updated += 1
+    session.commit()
+    return ok({"updated": updated, "failed": failed, "total": len(stocks)})

@@ -13,6 +13,7 @@ import { api } from "@/lib/api/client";
 import { formatMoney, formatQuantity, pnlDirection } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
+  useFinancials,
   useIndicators,
   usePrices,
   useStock,
@@ -30,6 +31,7 @@ export default function StockDetailPage() {
   const { data: prices, isLoading: pricesLoading } = usePrices(id);
   const { data: indicators } = useIndicators(id);
   const { data: txs } = useStockTransactions(id);
+  const { data: financials } = useFinancials(id);
 
   const [range, setRange] = useState<(typeof RANGES)[number]>("3M");
   const [subPanel, setSubPanel] = useState<"MACD" | "RSI">("MACD");
@@ -136,6 +138,17 @@ export default function StockDetailPage() {
           <Metric label="Realized P/L" value={holding ? formatMoney(holding.realized_pnl, holding.currency, { sign: true }) : "—"} direction={holding ? pnlDirection(holding.realized_pnl) : "flat"} />
         </div>
 
+        {/* 财务/估值 */}
+        <div className="grid grid-cols-2 gap-px border-b border-border-subtle bg-border-subtle sm:grid-cols-4 lg:grid-cols-7">
+          <Metric label="PE" value={fmtRatio(financials?.pe)} />
+          <Metric label="PB" value={fmtRatio(financials?.pb)} />
+          <Metric label="ROE(TTM)" value={fmtPct(financials?.roe)} />
+          <Metric label="营收 YoY" value={fmtPct(financials?.revenue_yoy)} direction={dirOf(financials?.revenue_yoy)} />
+          <Metric label="净利 YoY" value={fmtPct(financials?.profit_yoy)} direction={dirOf(financials?.profit_yoy)} />
+          <Metric label="EPS" value={fmtRatio(financials?.eps)} />
+          <Metric label="股息率" value={fmtPct(financials?.dividend_yield)} />
+        </div>
+
         {/* 主图 */}
         <div className="p-6">
           <div className="mb-3 flex items-center justify-between">
@@ -229,6 +242,25 @@ export default function StockDetailPage() {
       </Card>
     </div>
   );
+}
+
+function fmtRatio(v: string | null | undefined): string {
+  if (!v) return "—";
+  const n = Number(v);
+  return Number.isNaN(n) ? "—" : n.toFixed(2);
+}
+
+function fmtPct(v: string | null | undefined): string {
+  if (!v) return "—";
+  const n = Number(v);
+  return Number.isNaN(n) ? "—" : `${(n * 100).toFixed(1)}%`;
+}
+
+function dirOf(v: string | null | undefined): "up" | "down" | "flat" {
+  if (!v) return "flat";
+  const n = Number(v);
+  if (Number.isNaN(n) || n === 0) return "flat";
+  return n > 0 ? "up" : "down";
 }
 
 function Metric({ label, value, direction = "flat" }: { label: string; value: string; direction?: "up" | "down" | "flat" }) {

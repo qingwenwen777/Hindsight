@@ -7,6 +7,7 @@ from app.models.ai_insight import AiInsight
 from app.models.cash import CashAccount, CashFlow
 from app.models.corporate_action import CorporateAction
 from app.models.fee_rule import FeeRule
+from app.models.financials import Financial
 from app.models.fx_rate import FxRate
 from app.models.journal import Journal, Review
 from app.models.stock import Price, Stock
@@ -28,4 +29,5 @@ __all__ = [
     "CashFlow",
     "AiInsight",
     "Watchlist",
+    "Financial",
 ]

@@ -62,6 +62,19 @@ def build_trade_review_context(session: Session, transaction_id: int) -> str:
             f"- 主要风险: {journal.risks or '—'}"
         )
 
+    # 决策时财务数据（代码取，AI 不得编造）
+    fin_lines = "（无财务数据）"
+    fin = _latest_financial(session, tx.stock_id)
+    if fin:
+        def _pct(v):  # noqa: ANN202
+            return f"{float(v) * 100:.1f}%" if v is not None else "—"
+
+        fin_lines = (
+            f"- PE: {fin.pe or '—'} | PB: {fin.pb or '—'} | ROE(TTM): {_pct(fin.roe)}\n"
+            f"- 营收 YoY: {_pct(fin.revenue_yoy)} | 净利 YoY: {_pct(fin.profit_yoy)}\n"
+            f"- 数据日期: {fin.as_of.isoformat()}"
+        )
+
     return f"""## 交易信息
 - 股票: {stock.name} ({stock.symbol})
 - 方向: {tx.type} | 日期: {tx.trade_date}
@@ -73,8 +86,23 @@ def build_trade_review_context(session: Session, transaction_id: int) -> str:
 ## 决策后实际走势(代码计算,精确)
 - 30 天回报: {_fmt(return_30d)}
 
-> 注：以上数字由系统精确计算，请仅基于这些数据做定性分析。
+## 财务/估值数据(代码取,精确)
+{fin_lines}
+
+> 注：以上数字由系统精确计算/获取，请仅基于这些数据做定性分析。
 """
+
+
+def _latest_financial(session: Session, stock_id: int):  # noqa: ANN202
+    """取最新财务快照。"""
+    from app.models.financials import Financial
+
+    return session.exec(
+        select(Financial)
+        .where(Financial.stock_id == stock_id)
+        .order_by(Financial.as_of.desc())
+        .limit(1)
+    ).first()
 
 
 def build_devils_advocate_context(session: Session, journal_id: int) -> str:

@@ -59,3 +59,24 @@ export function useStockTransactions(id: number) {
     enabled: Number.isFinite(id),
   });
 }
+
+export interface Financials {
+  as_of: string;
+  pe: string | null;
+  pb: string | null;
+  roe: string | null;
+  revenue_yoy: string | null;
+  profit_yoy: string | null;
+  market_cap: string | null;
+  dividend_yield: string | null;
+  eps: string | null;
+  source: string | null;
+}
+
+export function useFinancials(id: number) {
+  return useQuery({
+    queryKey: ["financials", id],
+    queryFn: async () => (await api.get<Financials | null>(`/stocks/${id}/financials`)).data,
+    enabled: Number.isFinite(id),
+  });
+}
