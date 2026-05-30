@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { PnL } from "@/components/stats/pnl";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
@@ -63,78 +63,81 @@ export default function WatchlistPage() {
       </div>
 
       {/* 搜索加入 */}
-      <Card>
-        <CardContent className="p-5">
-          <Input placeholder={t("watchlist.searchPlaceholder")} value={q} onChange={(e) => setQ(e.target.value)} />
-          {q && (
-            <div className="mt-3 grid gap-1">
-              {(results ?? []).map((s) => (
-                <div
-                  key={s.id}
-                  className="flex items-center justify-between rounded-md px-2 py-2 text-body hover:bg-elevated"
-                >
-                  <Link href={`/stocks/${s.id}`} className="text-primary hover:text-accent">
-                    {s.name} <span className="tnum text-tertiary">{s.symbol} · {s.market}</span>
-                  </Link>
-                  {watchedIds.has(s.id) ? (
-                    <span className="text-meta text-tertiary">{t("watchlist.watched")}</span>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => add.mutate({ stock_id: s.id })}
-                    >
-                      <Star className="h-3.5 w-3.5" /> {t("watchlist.watch")}
-                    </Button>
-                  )}
-                </div>
-              ))}
+      <div className="relative">
+        <Input
+          className="h-11"
+          placeholder={t("watchlist.searchPlaceholder")}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        {q && (
+          <div className="mt-2 grid gap-1 rounded-card border border-border-default bg-surface p-2 card-shadow">
+            {(results ?? []).map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between rounded-md px-2 py-2 text-body hover:bg-elevated"
+              >
+                <Link href={`/stocks/${s.id}`} className="text-primary hover:text-accent">
+                  {s.name} <span className="tnum text-tertiary">{s.symbol} · {s.market}</span>
+                </Link>
+                {watchedIds.has(s.id) ? (
+                  <span className="text-meta text-tertiary">{t("watchlist.watched")}</span>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => add.mutate({ stock_id: s.id })}
+                  >
+                    <Star className="h-3.5 w-3.5" /> {t("watchlist.watch")}
+                  </Button>
+                )}
+              </div>
+            ))}
 
-              {/* 本地无结果 → 数据源发现 */}
-              {localEmpty && (
-                <>
-                  {(discovered ?? []).length > 0 && (
-                    <p className="px-2 pt-1 text-caption text-tertiary">
-                      {t("watchlist.discoverHint")}
-                    </p>
-                  )}
-                  {(discovered ?? []).map((c) => {
-                    const key = `${c.market}:${c.symbol}`;
-                    return (
-                      <div
-                        key={key}
-                        className="flex items-center justify-between rounded-md px-2 py-2 text-body hover:bg-elevated"
-                      >
-                        <span className="text-primary">
-                          {c.name}{" "}
-                          <span className="tnum text-tertiary">
-                            {c.symbol} · {c.market}
-                            {c.exchange ? ` · ${c.exchange}` : ""}
-                          </span>
+            {/* 本地无结果 → 数据源发现 */}
+            {localEmpty && (
+              <>
+                {(discovered ?? []).length > 0 && (
+                  <p className="px-2 pt-1 text-caption text-tertiary">
+                    {t("watchlist.discoverHint")}
+                  </p>
+                )}
+                {(discovered ?? []).map((c) => {
+                  const key = `${c.market}:${c.symbol}`;
+                  return (
+                    <div
+                      key={key}
+                      className="flex items-center justify-between rounded-md px-2 py-2 text-body hover:bg-elevated"
+                    >
+                      <span className="text-primary">
+                        {c.name}{" "}
+                        <span className="tnum text-tertiary">
+                          {c.symbol} · {c.market}
+                          {c.exchange ? ` · ${c.exchange}` : ""}
                         </span>
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          disabled={adding === key}
-                          onClick={() => addCandidate(c)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          {adding === key ? t("watchlist.adding") : t("watchlist.addAndSync")}
-                        </Button>
-                      </div>
-                    );
-                  })}
-                  {(discovered ?? []).length === 0 && (
-                    <p className="px-2 py-2 text-meta text-tertiary">
-                      {discovering ? t("watchlist.searching") : t("watchlist.notFound")}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        disabled={adding === key}
+                        onClick={() => addCandidate(c)}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {adding === key ? t("watchlist.adding") : t("watchlist.addAndSync")}
+                      </Button>
+                    </div>
+                  );
+                })}
+                {(discovered ?? []).length === 0 && (
+                  <p className="px-2 py-2 text-meta text-tertiary">
+                    {discovering ? t("watchlist.searching") : t("watchlist.notFound")}
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* 已关注 */}
       <Card className="overflow-hidden">

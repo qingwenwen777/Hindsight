@@ -9,15 +9,18 @@ import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
+import { useUiStore } from "@/lib/store/ui-store";
 
 interface PeriodReport {
   period: string;
+  currency: string;
   buy_count: number;
   sell_count: number;
   total_buy_amount: string;
   total_sell_amount: string;
   total_fees: string;
   symbols_traded: string[];
+  is_estimated: boolean;
 }
 
 interface FailureCase {
@@ -32,14 +35,15 @@ interface FailureCase {
 
 export default function ReportsPage() {
   const { t } = useT();
+  const baseCurrency = useUiStore((s) => s.baseCurrency);
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
   const { data: report, refetch } = useQuery({
-    queryKey: ["report-monthly", year, month],
+    queryKey: ["report-monthly", year, month, baseCurrency],
     queryFn: async () =>
-      (await api.get<PeriodReport>(`/reports/monthly?year=${year}&month=${month}`)).data,
+      (await api.get<PeriodReport>(`/reports/monthly?year=${year}&month=${month}&currency=${baseCurrency}`)).data,
   });
 
   const { data: failures } = useQuery({
@@ -83,9 +87,9 @@ export default function ReportsPage() {
               <Stat label={t("reports.buyCount")} value={String(report.buy_count)} />
               <Stat label={t("reports.sellCount")} value={String(report.sell_count)} />
               <Stat label={t("reports.symbolsTraded")} value={String(report.symbols_traded.length)} />
-              <Stat label={t("reports.buyAmount")} value={formatMoney(report.total_buy_amount)} />
-              <Stat label={t("reports.sellAmount")} value={formatMoney(report.total_sell_amount)} />
-              <Stat label={t("reports.totalFees")} value={formatMoney(report.total_fees)} />
+              <Stat label={t("reports.buyAmount")} value={formatMoney(report.total_buy_amount, report.currency)} />
+              <Stat label={t("reports.sellAmount")} value={formatMoney(report.total_sell_amount, report.currency)} />
+              <Stat label={t("reports.totalFees")} value={formatMoney(report.total_fees, report.currency)} />
             </div>
           ) : (
             <div className="h-24 animate-pulse rounded-md bg-elevated" />

@@ -22,12 +22,14 @@ class PeriodReport:
     period: str
     start: date
     end: date
+    currency: str = "JPY"
     buy_count: int = 0
     sell_count: int = 0
     total_buy_amount: Decimal = ZERO
     total_sell_amount: Decimal = ZERO
     total_fees: Decimal = ZERO
     symbols_traded: list[str] = field(default_factory=list)
+    is_estimated: bool = False
 
 
 def _period_bounds(year: int, month: int | None = None, quarter: int | None = None) -> tuple[date, date]:
@@ -51,13 +53,17 @@ def build_period_report(
     year: int,
     month: int | None = None,
     quarter: int | None = None,
+    currency: str = "JPY",
 ) -> PeriodReport:
-    """构建某期间的交易汇总报表。"""
+    """构建某期间的交易汇总报表（金额按交易日汇率换算到 currency）。"""
+    from app.core.currency import FxRateUnavailable, get_fx_quote
+
+    currency = currency.upper()
     start, end = _period_bounds(year, month, quarter)
     label = (
         f"{year}-{month:02d}" if month else f"{year}Q{quarter}" if quarter else str(year)
     )
-    report = PeriodReport(period=label, start=start, end=end)
+    report = PeriodReport(period=label, start=start, end=end, currency=currency)
 
     txs = session.exec(
         select(Transaction).where(
@@ -65,11 +71,26 @@ def build_period_report(
         )
     ).all()
 
+    def _conv(amount: Decimal, from_ccy: str, on: date) -> Decimal:
+        """把金额按交易日汇率换算到目标币种；缺失则标记估算并原样并入。"""
+        from_ccy = (from_ccy or currency).upper()
+        if from_ccy == currency:
+            return amount
+        try:
+            q = get_fx_quote(session, from_ccy, currency, on)
+            if q.is_estimated:
+                report.is_estimated = True
+            return amount * q.rate
+        except FxRateUnavailable:
+            report.is_estimated = True
+            return amount
+
     symbols: set[str] = set()
     for tx in txs:
-        amount = D(tx.quantity) * D(tx.price)
-        fees = (tx.commission or ZERO) + (tx.tax or ZERO) + (tx.other_fees or ZERO)
-        report.total_fees += D(fees)
+        ccy = (tx.currency or currency).upper()
+        amount = _conv(D(tx.quantity) * D(tx.price), ccy, tx.trade_date)
+        fees_raw = (tx.commission or ZERO) + (tx.tax or ZERO) + (tx.other_fees or ZERO)
+        report.total_fees += _conv(D(fees_raw), ccy, tx.trade_date)
         if tx.type == "BUY":
             report.buy_count += 1
             report.total_buy_amount += amount

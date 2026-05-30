@@ -50,42 +50,66 @@ def _serialize_period(r) -> dict:  # noqa: ANN001
         "period": r.period,
         "start": r.start.isoformat(),
         "end": r.end.isoformat(),
+        "currency": r.currency,
         "buy_count": r.buy_count,
         "sell_count": r.sell_count,
         "total_buy_amount": to_db_str(r.total_buy_amount),
         "total_sell_amount": to_db_str(r.total_sell_amount),
         "total_fees": to_db_str(r.total_fees),
         "symbols_traded": r.symbols_traded,
+        "is_estimated": r.is_estimated,
     }
+
+
+def _ensure_fx(session: Session) -> None:
+    """报表跨币种换算前，确保当天有汇率（无则联网拉取，失败回退历史）。"""
+    from datetime import date as _date
+
+    from app.services.data_sync.fx_client import has_rates_for_date, store_live_rates
+
+    if not has_rates_for_date(session, _date.today()):
+        try:
+            store_live_rates(session, _date.today())
+        except Exception:  # noqa: BLE001, S110
+            pass
 
 
 @router.get("/monthly", summary="月度报表")
 def monthly_report(
     year: int = Query(...),
     month: int = Query(..., ge=1, le=12),
+    currency: str = Query("JPY", description="换算目标币种 JPY/USD/CNY/HKD"),
     session: Session = Depends(get_session),
 ) -> dict:
     from app.services.analysis.reports import build_period_report
 
-    return ok(_serialize_period(build_period_report(session, year, month=month)))
+    _ensure_fx(session)
+    return ok(_serialize_period(build_period_report(session, year, month=month, currency=currency)))
 
 
 @router.get("/quarterly", summary="季度报表")
 def quarterly_report(
     year: int = Query(...),
     quarter: int = Query(..., ge=1, le=4),
+    currency: str = Query("JPY", description="换算目标币种 JPY/USD/CNY/HKD"),
     session: Session = Depends(get_session),
 ) -> dict:
     from app.services.analysis.reports import build_period_report
 
-    return ok(_serialize_period(build_period_report(session, year, quarter=quarter)))
+    _ensure_fx(session)
+    return ok(_serialize_period(build_period_report(session, year, quarter=quarter, currency=currency)))
 
 
 @router.get("/yearly", summary="年度报表")
-def yearly_report(year: int = Query(...), session: Session = Depends(get_session)) -> dict:
+def yearly_report(
+    year: int = Query(...),
+    currency: str = Query("JPY", description="换算目标币种 JPY/USD/CNY/HKD"),
+    session: Session = Depends(get_session),
+) -> dict:
     from app.services.analysis.reports import build_period_report
 
-    return ok(_serialize_period(build_period_report(session, year)))
+    _ensure_fx(session)
+    return ok(_serialize_period(build_period_report(session, year, currency=currency)))
 
 
 @router.get("/failures", summary="失败案例库")
