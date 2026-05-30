@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/use-t";
 import {
   type ScreenCondition,
@@ -92,37 +93,32 @@ export default function ScreenerPage() {
             const isNum = NUMERIC.has(cond.field);
             return (
               <div key={i} className="flex flex-wrap items-center gap-2">
-                <select
+                <Select
                   value={cond.field}
-                  onChange={(e) => updateCondition(i, { field: e.target.value })}
-                  className="h-9 rounded-md border border-border-default bg-base px-2 text-body text-primary outline-none"
-                >
-                  {fields.map((f) => (
-                    <option key={f} value={f}>{fieldLabel(f)}</option>
-                  ))}
-                </select>
+                  onValueChange={(v) => updateCondition(i, { field: v })}
+                  options={fields.map((f) => ({ value: f, label: fieldLabel(f) }))}
+                  className="w-40"
+                />
 
                 {!isBool && (
-                  <select
+                  <Select
                     value={cond.op}
-                    onChange={(e) => updateCondition(i, { op: e.target.value })}
-                    className="h-9 rounded-md border border-border-default bg-base px-2 text-body text-primary outline-none"
-                  >
-                    {(isNum ? ops : ["="]).map((o) => (
-                      <option key={o} value={o}>{o}</option>
-                    ))}
-                  </select>
+                    onValueChange={(v) => updateCondition(i, { op: v })}
+                    options={(isNum ? ops : ["="]).map((o) => ({ value: o, label: o }))}
+                    className="w-24"
+                  />
                 )}
 
                 {isBool ? (
-                  <select
+                  <Select
                     value={String(cond.value ?? true)}
-                    onChange={(e) => updateCondition(i, { op: "=", value: e.target.value === "true" })}
-                    className="h-9 rounded-md border border-border-default bg-base px-2 text-body text-primary outline-none"
-                  >
-                    <option value="true">是</option>
-                    <option value="false">否</option>
-                  </select>
+                    onValueChange={(v) => updateCondition(i, { op: "=", value: v === "true" })}
+                    options={[
+                      { value: "true", label: t("screener.yes") },
+                      { value: "false", label: t("screener.no") },
+                    ]}
+                    className="w-24"
+                  />
                 ) : (
                   <Input
                     className="w-28"

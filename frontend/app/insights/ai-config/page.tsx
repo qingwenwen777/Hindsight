@@ -75,7 +75,7 @@ export default function AiConfigPage() {
                 )}
               >
                 <span className="min-w-0 flex-1 truncate text-body">{p.name}</span>
-                {p.is_default && <Star className="h-3.5 w-3.5 shrink-0 fill-warn text-warn" />}
+                {p.is_default && <Star className="h-3.5 w-3.5 shrink-0 fill-amber-400 text-amber-400" />}
                 {p.enabled && (
                   <span className="shrink-0 rounded-full bg-up/15 px-1.5 text-[10px] font-medium text-up">
                     ON
@@ -222,8 +222,8 @@ function ProviderEditor({
             </Button>
           )}
           {provider.is_default && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-warn/15 px-2 py-1 text-caption font-medium text-warn">
-              <Star className="h-3.5 w-3.5 fill-warn" />
+            <span className="inline-flex items-center gap-1 rounded-md bg-amber-400/15 px-2 py-1 text-caption font-medium text-amber-500">
+              <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
               {t("aicfg.default")}
             </span>
           )}
@@ -236,15 +236,15 @@ function ProviderEditor({
               });
             }}
             className={cn(
-              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
               enabled ? "bg-up" : "bg-border-strong",
             )}
             aria-label={t("aicfg.enabled")}
           >
             <span
               className={cn(
-                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform",
-                enabled ? "translate-x-[18px]" : "translate-x-0.5",
+                "inline-block h-5 w-5 rounded-full bg-white shadow-md ring-1 ring-black/10 transition-transform",
+                enabled ? "translate-x-[22px]" : "translate-x-0.5",
               )}
             />
           </button>
@@ -377,11 +377,11 @@ function ProviderEditor({
                     onClick={() => setDefaultModel(m)}
                     className={cn(
                       "inline-flex items-center gap-1 rounded px-1 py-0.5 text-caption transition-colors",
-                      isDefault ? "text-warn" : "text-tertiary opacity-0 group-hover:opacity-100 hover:text-primary",
+                      isDefault ? "text-amber-500" : "text-tertiary opacity-0 group-hover:opacity-100 hover:text-primary",
                     )}
                     title={t("aicfg.setDefaultModel")}
                   >
-                    <Star className={cn("h-3 w-3", isDefault && "fill-warn")} />
+                    <Star className={cn("h-3 w-3", isDefault && "fill-amber-400 text-amber-400")} />
                     {isDefault && t("aicfg.defaultModel")}
                   </button>
                   <button

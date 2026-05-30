@@ -113,7 +113,7 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-3">
+      <nav className="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.titleKey} className="mb-4">
             {!collapsed && <div className="px-3 pb-1.5 label-caps">{t(group.titleKey)}</div>}

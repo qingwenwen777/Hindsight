@@ -6,6 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { Markdown } from "@/components/insights/markdown";
 import { ProviderModelPicker } from "@/components/ai/provider-model-picker";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import {
   streamConversationChat,
   useAiBudget,
@@ -57,6 +59,7 @@ export default function AiChatPage() {
   const [selected, setSelected] = useState<ContextRef[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -150,8 +153,14 @@ export default function AiChatPage() {
     if (title && title.trim()) await renameConv.mutateAsync({ id, title: title.trim() });
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm(t("ai.deleteConfirm"))) return;
+  const handleDelete = (id: number) => {
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmDeleteId;
+    if (id == null) return;
+    setConfirmDeleteId(null);
     await deleteConv.mutateAsync(id);
     if (activeId === id) startNewChat();
   };
@@ -532,6 +541,21 @@ export default function AiChatPage() {
           <p className="mt-2 text-center text-caption text-muted">{t("ai.disclaimer")}</p>
         </div>
       </div>
+
+      {/* 删除会话确认弹窗（替代浏览器原生 confirm） */}
+      <Dialog open={confirmDeleteId != null} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+        <DialogContent title={t("ai.deleteTitle")} className="max-w-sm">
+          <p className="text-body text-secondary">{t("ai.deleteConfirm")}</p>
+          <div className="mt-5 flex justify-end gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">{t("ai.cancel")}</Button>
+            </DialogClose>
+            <Button variant="danger" onClick={confirmDelete}>
+              {t("ai.delete")}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

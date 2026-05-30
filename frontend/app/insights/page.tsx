@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/use-t";
 import {
   downloadInsightDoc,
@@ -37,15 +38,12 @@ export default function InsightsPage() {
           <p className="mt-2 text-meta text-tertiary">{t("insights.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <select
+          <Select
             value={genMarket}
-            onChange={(e) => setGenMarket(e.target.value)}
-            className="h-[34px] rounded-md border border-border-default bg-base px-2 text-body text-primary outline-none"
-          >
-            {MARKETS.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
+            onValueChange={setGenMarket}
+            options={MARKETS.map((m) => ({ value: m, label: m }))}
+            className="h-[34px] w-24"
+          />
           <Button
             variant="secondary"
             disabled={generate.isPending}
