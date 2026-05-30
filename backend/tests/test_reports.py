@@ -48,12 +48,64 @@ def test_monthly_report(session: Session) -> None:
     )
     session.commit()
 
-    r = build_period_report(session, 2026, month=3)
+    r = build_period_report(session, 2026, month=3, currency="CNY")
     assert r.buy_count == 1
     assert r.sell_count == 1
     assert r.total_buy_amount == Decimal("1000")
     assert r.total_sell_amount == Decimal("600")
     assert r.total_fees == Decimal("8")
+
+
+def test_monthly_report_currency_conversion(session: Session) -> None:
+    """跨币种换算：USD 交易按汇率换算到 JPY。
+
+    交易日无历史汇率时，回退到当天汇率（这里两者都用 seeded 汇率覆盖）。
+    """
+    from app.services.data_sync.fx_client import upsert_fx_rate
+
+    s = Stock(symbol="AAPL", market="US", name="Apple", currency="USD")
+    session.add(s)
+    session.commit()
+    session.refresh(s)
+    session.add(
+        Transaction(
+            stock_id=s.id, type="BUY", trade_date=date(2026, 3, 5),
+            quantity="10", price="100", currency="USD",
+            commission="2", tax="0", other_fees="0",
+        )
+    )
+    # 交易日汇率：1 USD = 150 JPY
+    upsert_fx_rate(session, "USD", "JPY", date(2026, 3, 5), "150")
+    session.commit()
+
+    r = build_period_report(session, 2026, month=3, currency="JPY")
+    assert r.currency == "JPY"
+    assert r.total_buy_amount == Decimal("150000")  # 1000 USD * 150
+    assert r.total_fees == Decimal("300")  # 2 USD * 150
+
+
+def test_monthly_report_conversion_fallback_today(session: Session) -> None:
+    """交易日无历史汇率 → 回退当天汇率换算（不再原样并入未换算金额）。"""
+    from app.services.data_sync.fx_client import upsert_fx_rate
+
+    s = Stock(symbol="MSFT", market="US", name="MS", currency="USD")
+    session.add(s)
+    session.commit()
+    session.refresh(s)
+    session.add(
+        Transaction(
+            stock_id=s.id, type="BUY", trade_date=date(2026, 3, 5),
+            quantity="10", price="100", currency="USD",
+            commission="0", tax="0", other_fees="0",
+        )
+    )
+    # 仅当天有汇率（交易日 2026-03-05 之前无任何汇率）
+    upsert_fx_rate(session, "USD", "JPY", date.today(), "160")
+    session.commit()
+
+    r = build_period_report(session, 2026, month=3, currency="JPY")
+    assert r.total_buy_amount == Decimal("160000")  # 1000 USD * 160（当天回退）
+    assert r.is_estimated is True
 
 
 def test_failure_library(session: Session) -> None:

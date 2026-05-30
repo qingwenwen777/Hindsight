@@ -60,6 +60,7 @@ def build_period_report(
 
     currency = currency.upper()
     start, end = _period_bounds(year, month, quarter)
+    today = date.today()
     label = (
         f"{year}-{month:02d}" if month else f"{year}Q{quarter}" if quarter else str(year)
     )
@@ -72,14 +73,22 @@ def build_period_report(
     ).all()
 
     def _conv(amount: Decimal, from_ccy: str, on: date) -> Decimal:
-        """把金额按交易日汇率换算到目标币种；缺失则标记估算并原样并入。"""
+        """换算到目标币种：优先交易日汇率；交易日无汇率时回退到当天汇率。"""
         from_ccy = (from_ccy or currency).upper()
         if from_ccy == currency:
             return amount
+        # 1) 交易日（或之前最近一日）汇率
         try:
             q = get_fx_quote(session, from_ccy, currency, on)
             if q.is_estimated:
                 report.is_estimated = True
+            return amount * q.rate
+        except FxRateUnavailable:
+            pass
+        # 2) 回退到当天汇率（_ensure_fx 已保证当天有汇率）
+        try:
+            q = get_fx_quote(session, from_ccy, currency, today)
+            report.is_estimated = True
             return amount * q.rate
         except FxRateUnavailable:
             report.is_estimated = True
