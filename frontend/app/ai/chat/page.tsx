@@ -52,8 +52,28 @@ export default function AiChatPage() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const SUGGESTIONS = [t("ai.suggestion.1"), t("ai.suggestion.2"), t("ai.suggestion.3")];
+
+  // 点击外部 / 按 Esc 关闭上下文选择器
+  useEffect(() => {
+    if (!pickerOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPickerOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPickerOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [pickerOpen]);
 
   // 切换会话时，把持久化的历史消息载入视图（流式发送中不覆盖）
   useEffect(() => {
@@ -441,7 +461,7 @@ export default function AiChatPage() {
               className="block max-h-[200px] w-full resize-none bg-transparent px-4 pb-12 pt-3.5 text-body text-primary outline-none placeholder:text-tertiary"
             />
             <div className="absolute inset-x-2 bottom-2 flex items-center justify-between">
-              <div className="relative">
+              <div className="relative" ref={pickerRef}>
                 <button
                   onClick={() => setPickerOpen((o) => !o)}
                   className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-2.5 py-1.5 text-caption text-secondary hover:bg-elevated hover:text-primary"

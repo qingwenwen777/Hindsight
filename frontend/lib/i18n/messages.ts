@@ -515,6 +515,7 @@ const zh2: Dict = {
   "exposure.currency": "币种",
   "exposure.dimExposure": "{dim}暴露",
   "exposure.noData": "暂无持仓数据",
+  "exposure.overThreshold": "超阈值",
 
   // 情绪审计
   "emotion.title": "情绪审计",
@@ -768,6 +769,7 @@ const ja2: Dict = {
   "exposure.currency": "通貨",
   "exposure.dimExposure": "{dim}エクスポージャー",
   "exposure.noData": "保有データがありません",
+  "exposure.overThreshold": "閾値超過",
 
   "emotion.title": "感情監査",
   "emotion.subtitle": "感情別の買い取引のその後の成績（30日リターンがプラスを勝ちとする）。",
@@ -1013,6 +1015,7 @@ const en2: Dict = {
   "exposure.currency": "Currency",
   "exposure.dimExposure": "{dim} Exposure",
   "exposure.noData": "No holdings data",
+  "exposure.overThreshold": "Over limit",
 
   "emotion.title": "Emotion Audit",
   "emotion.subtitle": "Post-buy performance by emotion (positive 30-day return counts as a win).",
