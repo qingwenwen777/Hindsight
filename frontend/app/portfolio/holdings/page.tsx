@@ -43,7 +43,7 @@ export default function HoldingsPage() {
               <tr>
                 <td colSpan={7} className="px-4 py-12 text-center text-secondary">
                   暂无持仓，
-                  <Link href="/transactions/new" className="text-accent hover:underline">
+                  <Link href="/transactions/new" className="text-primary underline underline-offset-2 hover:text-secondary">
                     去录入
                   </Link>
                 </td>

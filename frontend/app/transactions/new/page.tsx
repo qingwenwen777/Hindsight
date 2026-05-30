@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ApiError } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
@@ -263,42 +264,30 @@ export default function NewTransactionPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
                 <Label>决策类型</Label>
-                <select
+                <Select
                   value={decisionType}
-                  onChange={(e) => setDecisionType(e.target.value)}
-                  className="h-9 w-full rounded-md border border-border-subtle bg-base px-3 text-small text-primary"
-                >
-                  {["BUY", "SELL", "HOLD", "WATCH"].map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
+                  onValueChange={setDecisionType}
+                  options={["BUY", "SELL", "HOLD", "WATCH"].map((v) => ({ value: v, label: v }))}
+                />
               </div>
               <div className="space-y-1">
                 <Label>论点类别</Label>
-                <select
+                <Select
                   value={thesisCategory}
-                  onChange={(e) => setThesisCategory(e.target.value)}
-                  className="h-9 w-full rounded-md border border-border-subtle bg-base px-3 text-small text-primary"
-                >
-                  {["VALUATION", "TREND", "EVENT", "GROWTH", "OTHER"].map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
+                  onValueChange={setThesisCategory}
+                  options={["VALUATION", "TREND", "EVENT", "GROWTH", "OTHER"].map((v) => ({ value: v, label: v }))}
+                />
               </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1">
                 <Label>预期持有</Label>
-                <select
+                <Select
                   value={horizon}
-                  onChange={(e) => setHorizon(e.target.value)}
-                  className="h-9 w-full rounded-md border border-border-subtle bg-base px-3 text-small text-primary"
-                >
-                  {["SHORT", "MEDIUM", "LONG"].map((v) => (
-                    <option key={v} value={v}>{v}</option>
-                  ))}
-                </select>
+                  onValueChange={setHorizon}
+                  options={["SHORT", "MEDIUM", "LONG"].map((v) => ({ value: v, label: v }))}
+                />
               </div>
               <div className="space-y-1">
                 <Label>目标价</Label>

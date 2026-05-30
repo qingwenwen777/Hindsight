@@ -147,7 +147,7 @@ export default function DashboardPage() {
           </div>
           <div className="grid gap-3">
             {concentrationAlerts.length === 0 && (reminders?.length ?? 0) === 0 ? (
-              <div className="rounded-md border border-border-default border-l-2 border-l-up bg-base p-3.5">
+              <div className="rounded-md border border-border-default bg-base p-3.5">
                 <div className="text-body font-medium text-primary">组合健康</div>
                 <div className="mt-1.5 text-meta text-tertiary">暂无超阈值告警与到期复盘。</div>
               </div>
@@ -208,7 +208,7 @@ export default function DashboardPage() {
         ) : sorted.length === 0 ? (
           <div className="px-5 py-12 text-center text-tertiary">
             还没有持仓，
-            <Link href="/transactions/new" className="text-accent hover:underline">
+            <Link href="/transactions/new" className="text-primary underline underline-offset-2 hover:text-secondary">
               去录入一笔交易
             </Link>
           </div>

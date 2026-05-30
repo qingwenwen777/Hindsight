@@ -48,7 +48,7 @@ export default function TransactionsPage() {
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-secondary">
                   还没有交易，
-                  <Link href="/transactions/new" className="text-accent hover:underline">
+                  <Link href="/transactions/new" className="text-primary underline underline-offset-2 hover:text-secondary">
                     去录入
                   </Link>
                 </td>
@@ -78,7 +78,7 @@ export default function TransactionsPage() {
                       {t.journal_id ? (
                         <Link
                           href={`/journals/${t.journal_id}`}
-                          className="text-accent hover:underline"
+                          className="text-primary underline underline-offset-2 hover:text-secondary"
                         >
                           查看
                         </Link>

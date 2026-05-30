@@ -69,3 +69,51 @@ def test_trade_generates_cash_flow(client: TestClient, session: Session) -> None
     assert len(trade_flow) == 1
     assert trade_flow[0]["amount"] == "-170044.20"
     assert trade_flow[0]["related_tx_id"] is not None
+
+
+def test_account_update_and_delete(client: TestClient, session: Session) -> None:
+    """账户可改名、可删除（无交易关联时）。"""
+    acc = client.post(
+        "/api/v1/portfolio/accounts", json={"name": "旧名", "currency": "JPY"}
+    ).json()["data"]
+    aid = acc["id"]
+
+    # 改名 + 改币种
+    r = client.patch(f"/api/v1/portfolio/accounts/{aid}", json={"name": "新名", "currency": "USD"})
+    assert r.status_code == 200
+    assert r.json()["data"]["name"] == "新名"
+    assert r.json()["data"]["currency"] == "USD"
+
+    # 加一条手工入金后仍可删除（会清理手工流水）
+    client.post("/api/v1/portfolio/cash-flows", json={"account_id": aid, "type": "DEPOSIT", "amount": "1000"})
+    d = client.delete(f"/api/v1/portfolio/accounts/{aid}")
+    assert d.status_code == 200
+    assert client.get("/api/v1/portfolio/accounts").json()["meta"]["total"] == 0
+
+
+def test_account_delete_blocked_when_trade_linked(client: TestClient, session: Session) -> None:
+    """有交易关联现金流的账户不可直接删除（防丢账）。"""
+    stock = Stock(symbol="600519", market="CN", name="贵州茅台", currency="CNY")
+    session.add(stock)
+    session.commit()
+    session.refresh(stock)
+    acc = client.post(
+        "/api/v1/portfolio/accounts", json={"name": "A股", "currency": "CNY"}
+    ).json()["data"]
+    aid = acc["id"]
+    client.post("/api/v1/portfolio/cash-flows", json={"account_id": aid, "type": "DEPOSIT", "amount": "1000000"})
+    client.post(
+        "/api/v1/transactions",
+        json={
+            "stock_id": stock.id,
+            "type": "BUY",
+            "trade_date": "2026-01-02",
+            "quantity": "100",
+            "price": "1700",
+            "currency": "CNY",
+            "account_id": aid,
+            "journal": {"decision_type": "BUY", "thesis": "长期持有逻辑"},
+        },
+    )
+    d = client.delete(f"/api/v1/portfolio/accounts/{aid}")
+    assert d.status_code == 409

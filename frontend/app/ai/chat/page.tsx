@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, Plus, Send, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useAiBudget, useAiChat, type ContextRef } from "@/lib/hooks/use-ai";
@@ -88,14 +88,9 @@ export default function AiChatPage() {
     <div className="mx-auto flex h-[calc(100vh-60px-3rem)] max-w-3xl flex-col">
       {/* 顶部：标题 + 预算 */}
       <div className="flex items-center justify-between pb-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-elevated">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-title font-medium text-primary">AI 投资教练</h1>
-            <p className="text-caption text-tertiary">基于你的持仓与日志 · 仅定性分析</p>
-          </div>
+        <div>
+          <h1 className="text-title font-medium text-primary">AI 投资教练</h1>
+          <p className="text-caption text-tertiary">基于你的持仓与日志 · 仅定性分析</p>
         </div>
         {budget && (
           <div className="w-44">

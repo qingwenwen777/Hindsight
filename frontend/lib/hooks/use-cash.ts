@@ -47,6 +47,27 @@ export function useCreateAccount() {
   });
 }
 
+export function useUpdateAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: number; name?: string; currency?: string; broker?: string }) =>
+      (await api.patch<CashAccount>(`/portfolio/accounts/${id}`, body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cash-accounts"] }),
+  });
+}
+
+export function useDeleteAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.delete<{ deleted: number }>(`/portfolio/accounts/${id}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cash-accounts"] });
+      qc.invalidateQueries({ queryKey: ["cash-flows"] });
+    },
+  });
+}
+
 export function useCreateCashFlow() {
   const qc = useQueryClient();
   return useMutation({
