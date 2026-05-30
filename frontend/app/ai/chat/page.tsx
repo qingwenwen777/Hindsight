@@ -231,21 +231,21 @@ export default function AiChatPage() {
   const empty = messages.length === 0;
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-60px-3rem)] max-w-5xl gap-4">
+    <div className="flex h-[calc(100vh-60px-3rem)] w-full">
       {/* 左侧：会话列表 */}
-      <div className="hidden w-60 shrink-0 flex-col md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-border-subtle pr-4 md:flex">
         <button
           onClick={startNewChat}
           disabled={sending}
-          className="mb-3 flex items-center justify-center gap-2 rounded-lg border border-border-default bg-surface px-3 py-2.5 text-body font-medium text-secondary transition-colors hover:border-border-strong hover:text-primary disabled:opacity-40"
+          className="mb-4 flex items-center justify-center gap-2 rounded-lg border border-border-default bg-surface px-3 py-2.5 text-body font-medium text-secondary transition-colors hover:border-border-strong hover:text-primary disabled:opacity-40"
         >
           <MessageSquarePlus className="h-4 w-4" />
           {t("ai.newChat")}
         </button>
         <div className="px-1 pb-1.5 label-caps">{t("ai.history")}</div>
-        <div className="flex-1 overflow-y-auto">
+        <div className="-mr-1 flex-1 overflow-y-auto pr-1">
           {(conversations ?? []).length === 0 ? (
-            <p className="px-3 py-2 text-caption text-tertiary">{t("ai.noConversations")}</p>
+            <p className="px-2 py-2 text-caption text-tertiary">{t("ai.noConversations")}</p>
           ) : (
             <div className="grid gap-0.5">
               {(conversations ?? []).map((c) => {
@@ -254,8 +254,10 @@ export default function AiChatPage() {
                   <div
                     key={c.id}
                     className={cn(
-                      "group flex items-center gap-1 rounded-md px-2 py-2 text-body transition-colors",
-                      active ? "bg-elevated text-primary" : "text-tertiary hover:bg-elevated hover:text-primary",
+                      "group flex items-center gap-1 rounded-lg px-2.5 py-2 text-body transition-colors",
+                      active
+                        ? "bg-elevated text-primary"
+                        : "text-tertiary hover:bg-elevated/60 hover:text-primary",
                     )}
                   >
                     <button
@@ -286,12 +288,12 @@ export default function AiChatPage() {
             </div>
           )}
         </div>
-      </div>
+      </aside>
 
       {/* 右侧：对话主区 */}
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col md:pl-6">
         {/* 顶部：标题 + 预算 */}
-        <div className="flex items-center justify-between pb-4">
+        <div className="mx-auto flex w-full max-w-3xl items-center justify-between pb-4">
           <div className="flex items-center gap-2">
             {/* 移动端的新建按钮 */}
             <button
@@ -320,88 +322,90 @@ export default function AiChatPage() {
 
         {/* 对话区 */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          {empty ? (
-            <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated">
-                <Bot className="h-7 w-7 text-primary" />
+          <div className="mx-auto w-full max-w-3xl">
+            {empty ? (
+              <div className="flex h-full min-h-[50vh] flex-col items-center justify-center gap-6 px-4 text-center">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated">
+                  <Bot className="h-7 w-7 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-display text-primary">{t("ai.empty.title")}</h2>
+                  <p className="mt-2 text-meta text-tertiary">{t("ai.empty.desc")}</p>
+                </div>
+                <div className="flex w-full max-w-md flex-col gap-2">
+                  {SUGGESTIONS.map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => send(s)}
+                      className="rounded-lg border border-border-default bg-surface px-4 py-3 text-left text-body text-secondary transition-colors hover:border-border-strong hover:text-primary"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <h2 className="text-display text-primary">{t("ai.empty.title")}</h2>
-                <p className="mt-2 text-meta text-tertiary">{t("ai.empty.desc")}</p>
-              </div>
-              <div className="flex w-full max-w-md flex-col gap-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="rounded-lg border border-border-default bg-surface px-4 py-3 text-left text-body text-secondary transition-colors hover:border-border-strong hover:text-primary"
-                  >
-                    {s}
-                  </button>
+            ) : (
+              <div className="space-y-6 px-1 pb-4">
+                {messages.map((m, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div
+                      className={cn(
+                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+                        m.role === "user" ? "bg-elevated" : "bg-primary text-base",
+                      )}
+                    >
+                      {m.role === "user" ? (
+                        <User className="h-4 w-4 text-secondary" />
+                      ) : (
+                        <Bot className="h-4 w-4" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <div className="mb-1 text-caption font-medium text-tertiary">
+                        {m.role === "user" ? t("ai.you") : t("ai.coach")}
+                      </div>
+                      {m.role === "ai" && m.streaming && m.text === "" ? (
+                        <div className="flex items-center gap-1 pt-1.5">
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.3s]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
+                          <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
+                        </div>
+                      ) : (
+                        <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
+                          {m.text}
+                          {m.role === "ai" && m.streaming && (
+                            <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
+                          )}
+                        </div>
+                      )}
+                      {m.meta && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-muted">
+                          <span className="rounded border border-border-default px-1.5 py-0.5">
+                            {m.meta.model}
+                          </span>
+                          {m.meta.cached ? (
+                            <span>{t("ai.cached")}</span>
+                          ) : (
+                            <span className="tnum">
+                              {t("ai.tokensDetail", {
+                                total: m.meta.promptTokens + m.meta.completionTokens,
+                                prompt: m.meta.promptTokens,
+                                completion: m.meta.completionTokens,
+                              })}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="space-y-6 px-1 pb-4">
-              {messages.map((m, i) => (
-                <div key={i} className="flex gap-4">
-                  <div
-                    className={cn(
-                      "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
-                      m.role === "user" ? "bg-elevated" : "bg-primary text-base",
-                    )}
-                  >
-                    {m.role === "user" ? (
-                      <User className="h-4 w-4 text-secondary" />
-                    ) : (
-                      <Bot className="h-4 w-4" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 pt-0.5">
-                    <div className="mb-1 text-caption font-medium text-tertiary">
-                      {m.role === "user" ? t("ai.you") : t("ai.coach")}
-                    </div>
-                    {m.role === "ai" && m.streaming && m.text === "" ? (
-                      <div className="flex items-center gap-1 pt-1.5">
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.3s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
-                        <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
-                      </div>
-                    ) : (
-                      <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
-                        {m.text}
-                        {m.role === "ai" && m.streaming && (
-                          <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
-                        )}
-                      </div>
-                    )}
-                    {m.meta && (
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-muted">
-                        <span className="rounded border border-border-default px-1.5 py-0.5">
-                          {m.meta.model}
-                        </span>
-                        {m.meta.cached ? (
-                          <span>{t("ai.cached")}</span>
-                        ) : (
-                          <span className="tnum">
-                            {t("ai.tokensDetail", {
-                              total: m.meta.promptTokens + m.meta.completionTokens,
-                              prompt: m.meta.promptTokens,
-                              completion: m.meta.completionTokens,
-                            })}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* 输入区（ChatGPT 风格合成器） */}
-        <div className="pt-3">
+        <div className="mx-auto w-full max-w-3xl pt-3">
           {selectedHoldings.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-1.5">
               {selectedHoldings.map((h) => (
