@@ -45,6 +45,8 @@ class RenameConversationRequest(BaseModel):
 class ConversationChatRequest(BaseModel):
     message: str
     context_refs: list[ContextRef] = []
+    provider_id: int | None = None
+    model: str | None = None
 
 
 def _conv_brief(c: Conversation, message_count: int | None = None) -> dict:
@@ -232,6 +234,8 @@ def conversation_chat_stream(
                 target_id=None,
                 max_tokens=1500,
                 history=history,
+                provider_id=payload.provider_id,
+                force_model=payload.model,
             )
             for ev in events:
                 if ev.type == "meta":

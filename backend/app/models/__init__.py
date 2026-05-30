@@ -4,6 +4,7 @@
 """
 
 from app.models.ai_insight import AiInsight
+from app.models.ai_provider import AiProvider
 from app.models.cash import CashAccount, CashFlow
 from app.models.conversation import Conversation, ConversationMessage
 from app.models.corporate_action import CorporateAction
@@ -38,4 +39,5 @@ __all__ = [
     "PriceAlert",
     "Conversation",
     "ConversationMessage",
+    "AiProvider",
 ]

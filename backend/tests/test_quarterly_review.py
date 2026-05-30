@@ -10,32 +10,8 @@ from sqlmodel import Session
 from app.models.journal import Journal
 from app.models.stock import Price, Stock
 from app.models.transaction import Transaction
-from app.services.ai import client as ai_client
-
-
-class _Usage:
-    input_tokens = 800
-    output_tokens = 300
-
-
-class _Block:
-    type = "text"
-    text = "模式1：FOMO 情绪下买入胜率低。支持交易：见列表。改进：建立买入检查清单。"
-
-
-class _Msg:
-    content = [_Block()]
-    usage = _Usage()
-
-
-class _Messages:
-    def create(self, **kwargs):  # noqa: ANN003
-        return _Msg()
-
-
-class _Client:
-    def __init__(self, *a, **k):  # noqa: ANN002, ANN003
-        self.messages = _Messages()
+from app.services.ai import providers as ai_providers
+from app.services.ai.providers import LlmResult, ResolvedProvider
 
 
 def test_quarterly_review(client: TestClient, session: Session, monkeypatch) -> None:  # noqa: ANN001
@@ -59,11 +35,14 @@ def test_quarterly_review(client: TestClient, session: Session, monkeypatch) -> 
     session.add(Price(stock_id=s.id, date=buy_d + timedelta(days=30), close="80"))
     session.commit()
 
-    monkeypatch.setattr(ai_client, "is_available", lambda: True)
-    monkeypatch.setattr(ai_client.settings, "anthropic_api_key", "k")
-    import anthropic
-
-    monkeypatch.setattr(anthropic, "Anthropic", _Client)
+    monkeypatch.setattr(ai_providers, "resolve", lambda *a, **k: ResolvedProvider(
+        protocol="anthropic", base_url=None, api_key="k",
+        model="claude-sonnet-4-5", provider_id=None, provider_name="test",
+    ))
+    monkeypatch.setattr(ai_providers, "call", lambda rp_, **k: LlmResult(
+        text="模式1：FOMO 情绪下买入胜率低。支持交易：见列表。改进：建立买入检查清单。",
+        model=rp_.model, prompt_tokens=800, completion_tokens=300,
+    ))
 
     resp = client.post("/api/v1/ai/quarterly-review?year=2026&quarter=1")
     assert resp.status_code == 200

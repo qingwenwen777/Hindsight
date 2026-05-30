@@ -55,6 +55,9 @@ class ReportConfig(SQLModel, table=True):
     language: str = "zh"  # zh | ja | en（AI 正文语言）
     focus_text: str | None = None
     constraints: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # 日报使用的 AI 服务商与模型（为空则用全局默认服务商）
+    provider_id: int | None = Field(default=None, foreign_key="ai_providers.id")
+    model_name: str | None = None
     updated_at: datetime = Field(default_factory=utcnow)
 
 

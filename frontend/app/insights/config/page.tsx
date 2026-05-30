@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { ProviderModelPicker } from "@/components/ai/provider-model-picker";
 import { useT } from "@/lib/i18n/use-t";
 import { useReportConfig, useSaveReportConfig } from "@/lib/hooks/use-insights";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ export default function ReportConfigPage() {
   const [language, setLanguage] = useState("zh");
   const [focus, setFocus] = useState("");
   const [constraints, setConstraints] = useState("");
+  const [providerId, setProviderId] = useState<number | null>(null);
+  const [modelName, setModelName] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -41,6 +44,8 @@ export default function ReportConfigPage() {
     setLanguage(cfg.language ?? "zh");
     setFocus(cfg.focus_text ?? "");
     setConstraints((cfg.constraints ?? []).join("\n"));
+    setProviderId(cfg.provider_id ?? null);
+    setModelName(cfg.model_name ?? null);
   }, [cfg]);
 
   const toggleMarket = (m: string) => {
@@ -63,6 +68,8 @@ export default function ReportConfigPage() {
         language,
         focus_text: focus,
         constraints: constraints.split("\n").map((s) => s.trim()).filter(Boolean),
+        provider_id: providerId,
+        model_name: modelName,
       },
       { onSuccess: () => setSaved(true) },
     );
@@ -159,6 +166,17 @@ export default function ReportConfigPage() {
                 {o.l}
               </Button>
             ))}
+          </Row>
+
+          <Row label={t("config.aiModel")}>
+            <ProviderModelPicker
+              providerId={providerId}
+              model={modelName}
+              onChange={(pid, m) => {
+                setProviderId(pid);
+                setModelName(m);
+              }}
+            />
           </Row>
 
           <div className="space-y-1">

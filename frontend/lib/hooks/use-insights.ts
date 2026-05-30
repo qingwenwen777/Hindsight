@@ -33,6 +33,8 @@ export interface ReportConfig {
   language: string;
   focus_text: string | null;
   constraints: string[];
+  provider_id: number | null;
+  model_name: string | null;
   updated_at: string | null;
 }
 

@@ -15,6 +15,7 @@ import {
   Scale,
   ScanSearch,
   Settings,
+  SlidersHorizontal,
   Star,
   TrendingUp,
   Wallet,
@@ -62,6 +63,7 @@ const NAV_GROUPS: {
     items: [
       { href: "/insights", labelKey: "nav.insightsReports", icon: CandlestickChart },
       { href: "/insights/screener", labelKey: "nav.screener", icon: ScanSearch },
+      { href: "/insights/ai-config", labelKey: "nav.aiConfig", icon: SlidersHorizontal },
       { href: "/ai/chat", labelKey: "nav.aiChat", icon: Bot },
     ],
   },

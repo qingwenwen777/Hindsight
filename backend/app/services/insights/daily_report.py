@@ -103,7 +103,7 @@ def build_daily_report(
         )
 
     # AI 不可用 → 降级（仅机械数据）
-    if not ai_client.is_available():
+    if not ai_client.is_available(session):
         body = f"# {title}\n\n> （AI 未配置，本篇为数据汇总版）\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -113,7 +113,13 @@ def build_daily_report(
         )
 
     # 预算检查
-    model = model_for("DAILY_REPORT")
+    # 日报使用的服务商/模型：日报配置里指定，未指定则用全局默认服务商
+    from app.services.ai import providers as ai_providers
+
+    rp = ai_providers.resolve(
+        session, provider_id=config.provider_id, model=config.model_name
+    )
+    model = rp.model if rp else model_for("DAILY_REPORT")
     user_prompt = prompts.render_daily_report(
         data_md,
         market=_MARKET_LABEL.get(market, market),
@@ -144,7 +150,8 @@ def build_daily_report(
             target_type="PORTFOLIO",
             target_id=None,
             max_tokens=1500,
-            force_model=model,
+            force_model=config.model_name,
+            provider_id=config.provider_id,
         )
     except BudgetExceeded as e:
         body = f"# {title}\n\n> （{e}）\n\n{data_md}{DISCLAIMER}"

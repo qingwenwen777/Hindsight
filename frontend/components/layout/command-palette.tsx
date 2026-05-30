@@ -13,6 +13,7 @@ import {
   ScanSearch,
   Search,
   Settings,
+  SlidersHorizontal,
   Star,
   TrendingUp,
   Wallet,
@@ -42,6 +43,7 @@ const NAV_COMMANDS: NavCmd[] = [
   { labelKey: "nav.emotion", href: "/analytics/emotion", icon: Heart },
   { labelKey: "nav.insightsReports", href: "/insights", icon: CandlestickChart },
   { labelKey: "nav.screener", href: "/insights/screener", icon: ScanSearch },
+  { labelKey: "nav.aiConfig", href: "/insights/ai-config", icon: SlidersHorizontal },
   { labelKey: "nav.aiChat", href: "/ai/chat", icon: Bot },
   { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];

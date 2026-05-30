@@ -26,8 +26,10 @@ def test_cost_estimate_positive() -> None:
 
 
 def test_degraded_without_key(session: Session, monkeypatch) -> None:  # noqa: ANN001
-    """无 API key → 优雅降级，不崩溃，返回带声明的提示。"""
-    monkeypatch.setattr(ai_client, "is_available", lambda: False)
+    """无服务商 → 优雅降级，不崩溃，返回带声明的提示。"""
+    from app.services.ai import providers
+
+    monkeypatch.setattr(providers, "resolve", lambda *a, **k: None)
     result = ai_client.analyze(
         session,
         prompt_type="TRADE_REVIEW",
@@ -66,9 +68,19 @@ def test_budget_exceeded(session: Session) -> None:
 
 def test_cache_hit_no_charge(session: Session, monkeypatch) -> None:  # noqa: ANN001
     """缓存命中直接返回，不再调用模型、不扣费。"""
-    # 预置缓存
+    from app.services.ai import providers
+    from app.services.ai.providers import ResolvedProvider
+
+    # 解析到一个内置计价模型（与缓存里 model 一致，确保 hash 命中）
+    rp = ResolvedProvider(
+        protocol="anthropic", base_url=None, api_key="k",
+        model="claude-sonnet-4-5", provider_id=None, provider_name="test",
+    )
+    monkeypatch.setattr(providers, "resolve", lambda *a, **k: rp)
+
+    # 预置缓存（hash 含模型）
     ctx = "复盘上下文 ABC"
-    h = ai_client.compute_hash("TRADE_REVIEW", ctx)
+    h = ai_client.compute_hash("TRADE_REVIEW", "claude-sonnet-4-5", ctx)
     session.add(
         AiInsight(
             target_type="TRANSACTION",
@@ -82,8 +94,6 @@ def test_cache_hit_no_charge(session: Session, monkeypatch) -> None:  # noqa: AN
     )
     session.commit()
 
-    # 即便"可用"，也应命中缓存（monkeypatch is_available 为 True 但不应被调用真实 API）
-    monkeypatch.setattr(ai_client, "is_available", lambda: True)
     result = ai_client.analyze(
         session,
         prompt_type="TRADE_REVIEW",

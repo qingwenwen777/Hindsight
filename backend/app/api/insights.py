@@ -123,6 +123,8 @@ class ReportConfigPayload(BaseModel):
     language: str | None = None
     focus_text: str | None = None
     constraints: list[str] | None = None
+    provider_id: int | None = None
+    model_name: str | None = None
 
 
 def _config_dict(cfg: ReportConfig) -> dict:
@@ -135,6 +137,8 @@ def _config_dict(cfg: ReportConfig) -> dict:
         "language": cfg.language,
         "focus_text": cfg.focus_text,
         "constraints": cfg.constraints,
+        "provider_id": cfg.provider_id,
+        "model_name": cfg.model_name,
         "updated_at": cfg.updated_at.isoformat() if cfg.updated_at else None,
     }
 
@@ -165,6 +169,12 @@ def update_config(payload: ReportConfigPayload, session: Session = Depends(get_s
         cfg.focus_text = payload.focus_text
     if payload.constraints is not None:
         cfg.constraints = payload.constraints
+    # provider_id / model_name：用 fields_set 判断是否传入（None 是合法值＝用默认）
+    fields_set = payload.model_fields_set
+    if "provider_id" in fields_set:
+        cfg.provider_id = payload.provider_id
+    if "model_name" in fields_set:
+        cfg.model_name = payload.model_name or None
     cfg.updated_at = utcnow()
     session.add(cfg)
     session.commit()

@@ -253,7 +253,7 @@ export interface ConvChatStreamHandlers extends ChatStreamHandlers {
  */
 export function streamConversationChat(
   conversationId: number,
-  body: { message: string; context_refs: ContextRef[] },
+  body: { message: string; context_refs: ContextRef[]; provider_id?: number | null; model?: string | null },
   handlers: ConvChatStreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {

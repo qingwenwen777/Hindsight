@@ -79,7 +79,7 @@ def review_hits(
         body = f"# {title}\n\n> 筛选无命中标的。{DISCLAIMER}"
         return _save(session, title, body, symbols, degraded=False)
 
-    if not ai_client.is_available():
+    if not ai_client.is_available(session):
         body = f"# {title}\n\n> （AI 未配置，仅列出命中标的与数据）\n\n{context}{DISCLAIMER}"
         return _save(session, title, body, symbols, degraded=True, reason="AI 未配置")
 

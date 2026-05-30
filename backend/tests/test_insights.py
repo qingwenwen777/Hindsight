@@ -37,7 +37,7 @@ def test_daily_report_degraded_without_ai(session: Session, monkeypatch) -> None
     _price(session, sid, date(2026, 5, 28), "100")
     _price(session, sid, date(2026, 5, 29), "110")
 
-    monkeypatch.setattr(ai_client, "is_available", lambda: False)
+    monkeypatch.setattr(ai_client, "is_available", lambda *a, **k: False)
     doc = dr.build_daily_report(session, "US")
     assert doc.doc_type == "DAILY_REPORT"
     assert doc.degraded is True
@@ -52,7 +52,7 @@ def test_daily_report_idempotent(session: Session, monkeypatch) -> None:
     sid = _stock(session)
     _price(session, sid, date(2026, 5, 28), "100")
     _price(session, sid, date(2026, 5, 29), "110")
-    monkeypatch.setattr(ai_client, "is_available", lambda: False)
+    monkeypatch.setattr(ai_client, "is_available", lambda *a, **k: False)
 
     d1 = dr.build_daily_report(session, "US", on_date=date(2026, 5, 29))
     d2 = dr.build_daily_report(session, "US", on_date=date(2026, 5, 29))
@@ -104,7 +104,7 @@ def test_empty_market_brief(session: Session, monkeypatch) -> None:
     from app.services.ai import client as ai_client
     from app.services.insights import daily_report as dr
 
-    monkeypatch.setattr(ai_client, "is_available", lambda: False)
+    monkeypatch.setattr(ai_client, "is_available", lambda *a, **k: False)
     doc = dr.build_daily_report(session, "JP")
     assert doc is not None
     assert "无重点事项" in doc.body_md

@@ -26,6 +26,16 @@ install_journal_lock_guard()
 async def lifespan(app: FastAPI):  # noqa: ANN201
     """应用生命周期：启动时记录日志（建表交给 Alembic）。"""
     log.info("app.startup", app_name=settings.app_name, base_currency=settings.base_currency)
+    # 首次启动：把 env 里的 AI 配置迁为默认服务商（若 DB 还没有任何服务商）
+    try:
+        from app.database import engine
+        from app.services.ai.providers import seed_default_from_env
+        from sqlmodel import Session as _Session
+
+        with _Session(engine) as _s:
+            seed_default_from_env(_s)
+    except Exception as e:  # noqa: BLE001
+        log.warning("ai.provider_seed_failed", error=str(e))
     if settings.enable_scheduler:
         from app.services.data_sync.scheduler import shutdown_scheduler, start_scheduler
 
@@ -98,6 +108,7 @@ async def health() -> dict:
 from app.api import (  # noqa: E402
     admin,
     ai,
+    ai_providers,
     alerts,
     benchmark,
     biases,
@@ -126,6 +137,7 @@ app.include_router(corporate_actions.router, prefix=settings.api_prefix)
 app.include_router(benchmark.router, prefix=settings.api_prefix)
 app.include_router(exposure.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
+app.include_router(ai_providers.router, prefix=settings.api_prefix)
 app.include_router(conversations.router, prefix=settings.api_prefix)
 app.include_router(biases.router, prefix=settings.api_prefix)
 app.include_router(reports.router, prefix=settings.api_prefix)

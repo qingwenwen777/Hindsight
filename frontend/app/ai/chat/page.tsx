@@ -4,6 +4,8 @@ import { Bot, MessageSquarePlus, Pencil, Plus, Send, Trash2, User, X } from "luc
 import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
+import { Markdown } from "@/components/insights/markdown";
+import { ProviderModelPicker } from "@/components/ai/provider-model-picker";
 import {
   streamConversationChat,
   useAiBudget,
@@ -16,6 +18,7 @@ import {
 } from "@/lib/hooks/use-ai";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
 import { useT } from "@/lib/i18n/use-t";
+import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
 
 interface Msg {
@@ -41,6 +44,11 @@ export default function AiChatPage() {
   const renameConv = useRenameConversation();
   const deleteConv = useDeleteConversation();
 
+  // 全局默认服务商/模型（可在对话里临时切换）
+  const chatProviderId = useUiStore((s) => s.chatProviderId);
+  const chatModel = useUiStore((s) => s.chatModel);
+  const setChatProvider = useUiStore((s) => s.setChatProvider);
+
   const [activeId, setActiveId] = useState<number | null>(null);
   const { data: activeConv } = useConversation(activeId);
 
@@ -49,6 +57,7 @@ export default function AiChatPage() {
   const [selected, setSelected] = useState<ContextRef[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [sending, setSending] = useState(false);
+
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -186,7 +195,7 @@ export default function AiChatPage() {
     try {
       await streamConversationChat(
         convId,
-        { message: userMsg, context_refs: refs },
+        { message: userMsg, context_refs: refs, provider_id: chatProviderId, model: chatModel },
         {
           onDelta: appendDelta,
           onTitle: () => qc.invalidateQueries({ queryKey: ["conversations"] }),
@@ -329,15 +338,22 @@ export default function AiChatPage() {
               <p className="text-caption text-tertiary">{t("ai.subtitle")}</p>
             </div>
           </div>
-          {budget && (
-            <div className="text-right">
-              <div className="text-caption text-tertiary">{t("ai.monthlyTokens")}</div>
-              <div className="tnum text-body text-secondary">
-                {formatTokens(budget.total_tokens)}
-                <span className="text-caption text-tertiary"> · {t("ai.calls", { n: budget.calls })}</span>
+          <div className="flex items-center gap-3">
+            <ProviderModelPicker
+              providerId={chatProviderId}
+              model={chatModel}
+              onChange={setChatProvider}
+            />
+            {budget && (
+              <div className="text-right">
+                <div className="text-caption text-tertiary">{t("ai.monthlyTokens")}</div>
+                <div className="tnum text-body text-secondary">
+                  {formatTokens(budget.total_tokens)}
+                  <span className="text-caption text-tertiary"> · {t("ai.calls", { n: budget.calls })}</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* 对话区 */}
@@ -390,12 +406,16 @@ export default function AiChatPage() {
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
                           <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
                         </div>
+                      ) : m.role === "ai" ? (
+                        <div className="text-body leading-relaxed">
+                          <Markdown content={m.text} />
+                          {m.streaming && (
+                            <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
+                          )}
+                        </div>
                       ) : (
                         <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
                           {m.text}
-                          {m.role === "ai" && m.streaming && (
-                            <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
-                          )}
                         </div>
                       )}
                       {m.meta && (

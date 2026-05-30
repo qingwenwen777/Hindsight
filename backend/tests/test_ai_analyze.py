@@ -12,31 +12,25 @@ from app.models.journal import Journal
 from app.models.stock import Price, Stock
 from app.models.transaction import Transaction
 from app.services.ai import client as ai_client
+from app.services.ai import providers as ai_providers
+from app.services.ai.providers import LlmResult, ResolvedProvider
 
 
-class _FakeUsage:
-    input_tokens = 500
-    output_tokens = 200
-
-
-class _FakeBlock:
-    type = "text"
-    text = "1. 逻辑部分成立。2. 更多源自判断力。3. 留意确认偏误。"
-
-
-class _FakeMessage:
-    content = [_FakeBlock()]
-    usage = _FakeUsage()
-
-
-class _FakeMessages:
-    def create(self, **kwargs):  # noqa: ANN003
-        return _FakeMessage()
-
-
-class _FakeClient:
-    def __init__(self, *a, **k):  # noqa: ANN002, ANN003
-        self.messages = _FakeMessages()
+def _fake_provider(monkeypatch, model: str = "claude-sonnet-4-5") -> None:
+    """让 providers.resolve 返回一个固定服务商，providers.call 返回假回复。"""
+    rp = ResolvedProvider(
+        protocol="anthropic", base_url=None, api_key="test-key",
+        model=model, provider_id=None, provider_name="test",
+    )
+    monkeypatch.setattr(ai_providers, "resolve", lambda *a, **k: rp)
+    monkeypatch.setattr(
+        ai_providers,
+        "call",
+        lambda rp_, **k: LlmResult(
+            text="1. 逻辑部分成立。2. 更多源自判断力。3. 留意确认偏误。",
+            model=rp_.model, prompt_tokens=500, completion_tokens=200,
+        ),
+    )
 
 
 def _setup_trade(session: Session) -> int:
@@ -70,12 +64,8 @@ def test_trade_review_generates_and_caches(
     """生成复盘 → 写缓存；再次请求命中缓存不新增记录。"""
     tx_id = _setup_trade(session)
 
-    # 模拟有 key + 假 Anthropic
-    monkeypatch.setattr(ai_client, "is_available", lambda: True)
-    monkeypatch.setattr(ai_client.settings, "anthropic_api_key", "test-key")
-    import anthropic
-
-    monkeypatch.setattr(anthropic, "Anthropic", _FakeClient)
+    # 模拟有服务商 + 假回复
+    _fake_provider(monkeypatch)
 
     r1 = client.post("/api/v1/ai/analyze", json={"type": "TRADE_REVIEW", "target_id": tx_id})
     assert r1.status_code == 200
@@ -105,9 +95,11 @@ def test_budget_endpoint(client: TestClient) -> None:
 
 
 def test_analyze_degraded_without_key(client: TestClient, session: Session, monkeypatch) -> None:  # noqa: ANN001
-    """无 key → analyze 返回 degraded。"""
+    """无服务商 → analyze 返回 degraded。"""
     tx_id = _setup_trade(session)
-    monkeypatch.setattr(ai_client, "is_available", lambda: False)
+    from app.services.ai import providers as _p
+
+    monkeypatch.setattr(_p, "resolve", lambda *a, **k: None)
     resp = client.post("/api/v1/ai/analyze", json={"type": "TRADE_REVIEW", "target_id": tx_id})
     assert resp.status_code == 200
     assert resp.json()["data"]["degraded"] is True

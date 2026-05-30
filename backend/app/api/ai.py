@@ -38,6 +38,8 @@ class ChatContextRef(BaseModel):
 class ChatRequest(BaseModel):
     message: str
     context_refs: list[ChatContextRef] = []
+    provider_id: int | None = None
+    model: str | None = None
 
 
 @router.post("/analyze", summary="AI 分析")
@@ -137,7 +139,7 @@ def get_budget(session: Session = Depends(get_session)) -> dict:
             "remaining_jpy": to_db_str(guard.remaining()),
             "usage_ratio": round(guard.usage_ratio(), 4),
             "is_close": guard.is_close(),
-            "available": ai_client.is_available(),
+            "available": ai_client.is_available(session),
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
             "total_tokens": prompt_tokens + completion_tokens,
@@ -164,6 +166,8 @@ def chat(payload: ChatRequest, session: Session = Depends(get_session)) -> dict:
             target_type="PORTFOLIO",
             target_id=None,
             max_tokens=1500,
+            provider_id=payload.provider_id,
+            force_model=payload.model,
         )
     except BudgetExceeded as e:
         raise HTTPException(status_code=429, detail=str(e)) from e
@@ -211,6 +215,8 @@ def chat_stream(payload: ChatRequest, session: Session = Depends(get_session)): 
                 target_type="PORTFOLIO",
                 target_id=None,
                 max_tokens=1500,
+                provider_id=payload.provider_id,
+                force_model=payload.model,
             )
             for ev in events:
                 if ev.type == "meta":
