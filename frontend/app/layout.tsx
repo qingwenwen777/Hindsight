@@ -13,7 +13,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const jetbrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "TradeAI — 个人股票分析平台",
+  title: "Hindsight",
   description: "记录、分析与复盘你的投资决策，对抗认知偏差。",
 };
 
