@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # ---- AI ----
     anthropic_api_key: str | None = None
     ai_monthly_budget_jpy: int = 2000
+    # AI 服务端点与模型（可指向 Anthropic 官方或兼容端点如 DeepSeek 的 /anthropic）
+    ai_base_url: str | None = None
+    # 覆盖所有任务的模型名（如 DeepSeek 的 deepseek-chat）；为空则用内置分级表
+    ai_model: str | None = None
 
     # ---- 时区 ----
     display_timezone: str = "Asia/Tokyo"
@@ -50,11 +54,21 @@ class Settings(BaseSettings):
     # ---- 调度 ----
     enable_scheduler: bool = False
 
-    # ---- CORS（前端开发地址）----
+    # ---- CORS ----
+    # 默认开发地址；生产用 CORS_ORIGINS 环境变量追加（逗号分隔），或设为 "*" 放开
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
+    extra_cors_origins: str = ""  # 逗号分隔，或 "*"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """合并默认与环境追加的 CORS 来源。"""
+        if self.extra_cors_origins.strip() == "*":
+            return ["*"]
+        extra = [o.strip() for o in self.extra_cors_origins.split(",") if o.strip()]
+        return [*self.cors_origins, *extra]
 
     @property
     def data_dir(self) -> Path:

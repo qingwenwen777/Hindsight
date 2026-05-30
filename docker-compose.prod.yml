@@ -1,0 +1,45 @@
+# 生产部署编排（服务器）——独立项目，端口避开已有服务
+# 后端 8000、前端 3100；独立网络 tradeai_default，不干扰 bitebid/golive/interviewecho
+# 用法：docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  backend:
+    build: ./backend
+    image: tradeai-backend:prod
+    container_name: tradeai-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AI_BASE_URL=${AI_BASE_URL:-}
+      - AI_MODEL=${AI_MODEL:-}
+      - EXTRA_CORS_ORIGINS=${EXTRA_CORS_ORIGINS:-}
+      - BASE_CURRENCY=JPY
+      - DATABASE_URL=sqlite:////app/data/stock.db
+      - TZ=Asia/Tokyo
+      - ENABLE_SCHEDULER=${ENABLE_SCHEDULER:-false}
+      - BACKUP_PASSWORD=${BACKUP_PASSWORD:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8000/health').status==200 else sys.exit(1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+    image: tradeai-frontend:prod
+    container_name: tradeai-frontend
+    ports:
+      - "3100:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${PUBLIC_API_URL}
+    depends_on:
+      - backend
+    restart: unless-stopped

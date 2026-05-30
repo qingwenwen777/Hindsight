@@ -13,6 +13,10 @@ HAIKU = "claude-3-5-haiku-latest"
 SONNET = "claude-sonnet-4-5"
 OPUS = "claude-opus-4-1"
 
+# DeepSeek 模型（经 Anthropic 兼容端点调用）
+DEEPSEEK_CHAT = "deepseek-chat"
+DEEPSEEK_REASONER = "deepseek-reasoner"
+
 # 任务 → 模型分级（设计文档 5.5）
 TASK_MODEL_MAP: dict[str, str] = {
     "EARNINGS_SUMMARY": HAIKU,
@@ -30,6 +34,9 @@ MODEL_PRICING_USD: dict[str, tuple[Decimal, Decimal]] = {
     HAIKU: (Decimal("0.80"), Decimal("4.00")),
     SONNET: (Decimal("3.00"), Decimal("15.00")),
     OPUS: (Decimal("15.00"), Decimal("75.00")),
+    # DeepSeek 定价（USD/百万 token，缓存未命中价）
+    DEEPSEEK_CHAT: (Decimal("0.27"), Decimal("1.10")),
+    DEEPSEEK_REASONER: (Decimal("0.55"), Decimal("2.19")),
 }
 
 # 估算用汇率（USD->JPY），可被实时汇率覆盖

@@ -109,13 +109,13 @@ def analyze(
             completion_tokens=cached.completion_tokens or 0,
         )
 
-    model = force_model or model_for(prompt_type)
+    model = force_model or settings.ai_model or model_for(prompt_type)
 
     # 2. 无 key → 优雅降级
     if not is_available():
         msg = (
-            "（AI 未配置：缺少 ANTHROPIC_API_KEY，已跳过实际分析。"
-            "请在 backend/.env 配置后重试。）" + DISCLAIMER
+            "（AI 未配置：缺少 API Key，已跳过实际分析。"
+            "请在 backend/.env 配置 ANTHROPIC_API_KEY 后重试。）" + DISCLAIMER
         )
         return AiResult(
             response=msg,
@@ -133,10 +133,13 @@ def analyze(
     est_cost = estimate_cost_jpy(model, est_prompt, max_tokens)
     guard.ensure(est_cost)  # 超限抛 BudgetExceeded
 
-    # 4. 真正调用
+    # 4. 真正调用（支持自定义 base_url，如 DeepSeek 的 Anthropic 兼容端点）
     import anthropic  # noqa: PLC0415
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client_kwargs: dict = {"api_key": settings.anthropic_api_key}
+    if settings.ai_base_url:
+        client_kwargs["base_url"] = settings.ai_base_url
+    client = anthropic.Anthropic(**client_kwargs)
     msg = client.messages.create(
         model=model,
         max_tokens=max_tokens,
