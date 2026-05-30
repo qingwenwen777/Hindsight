@@ -46,13 +46,13 @@ export function LanguageSwitcher() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-md border border-border-strong bg-elevated py-1 shadow-xl">
+        <div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-md border border-border-strong bg-elevated p-1 shadow-xl">
           {LOCALES.map((l) => (
             <button
               key={l.value}
               onClick={() => pick(l.value)}
               className={cn(
-                "flex w-full items-center justify-between px-3 py-2 text-left text-body",
+                "flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-body outline-none transition-colors",
                 l.value === locale
                   ? "bg-base text-primary"
                   : "text-secondary hover:bg-base hover:text-primary",

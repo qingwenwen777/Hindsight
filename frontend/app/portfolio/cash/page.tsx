@@ -121,14 +121,11 @@ export default function CashPage() {
                   ) : (
                     <span className="text-body font-medium text-primary">{a.name}</span>
                   )}
-                  <span
-                    className={cn(
-                      "rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge text-secondary transition-opacity",
-                      !editing && "group-hover:opacity-0",
-                    )}
-                  >
-                    {a.currency}
-                  </span>
+                  {!editing && (
+                    <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge text-secondary transition-opacity group-hover:opacity-0">
+                      {a.currency}
+                    </span>
+                  )}
                 </div>
                 <div className="tnum mt-3 text-mono-lg text-primary">
                   {formatMoney(a.balance, a.currency)}
