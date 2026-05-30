@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
 
 from sqlmodel import Session, select
@@ -19,6 +20,13 @@ log = get_logger(__name__)
 DISCLAIMER = "\n\n---\n*AI 仅供参考，不构成投资建议，不预测股价、不提供买卖信号。*"
 
 _MARKET_LABEL = {"US": "美股", "CN": "A股", "HK": "港股", "JP": "日股"}
+
+# 进度回调：reporter(stage: str, progress: int, message: str|None) -> None
+ProgressReporter = Callable[[str, int, str | None], None]
+
+
+def _noop_reporter(stage: str, progress: int, message: str | None = None) -> None:  # noqa: ARG001
+    """默认空进度回调（无任务跟踪时使用）。"""
 
 
 def get_or_create_config(session: Session) -> ReportConfig:
@@ -83,18 +91,26 @@ def build_daily_report(
     market: str,
     config: ReportConfig | None = None,
     on_date: date | None = None,
+    progress: ProgressReporter | None = None,
 ) -> InsightDocument:
-    """生成某市场日报，返回文档。失败/不可用走降级。"""
+    """生成某市场日报，返回文档。失败/不可用走降级。
+
+    progress：可选进度回调，用于向任务状态上报阶段/进度。
+    """
+    report = progress or _noop_reporter
     market = market.upper()
     on_date = on_date or date.today()
     config = config or get_or_create_config(session)
 
+    # 阶段 1：收集上下文（行情/异动/触价/待办）
+    report("CONTEXT", 15, "收集行情与持仓异动")
     ctx = build_report_context(session, market, config.move_threshold_pct, on_date)
     data_md = render_context_md(ctx)
     title = _title(market, on_date)
 
     # 无重点事项 → 简短文档（仍记录）
     if not ctx.has_any:
+        report("SAVING", 90, "今日无重点事项，写入数据汇总")
         body = f"# {title}\n\n> 今日无重点事项（无超阈值异动、无触价、无待办）。\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -104,6 +120,7 @@ def build_daily_report(
 
     # AI 不可用 → 降级（仅机械数据）
     if not ai_client.is_available(session):
+        report("SAVING", 90, "AI 未配置，写入数据汇总版")
         body = f"# {title}\n\n> （AI 未配置，本篇为数据汇总版）\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -133,6 +150,7 @@ def build_daily_report(
     guard = BudgetGuard(session)
     est = estimate_cost_jpy(model, len(user_prompt) // 3 + 200, 1200)
     if not guard.can_call(est):
+        report("SAVING", 90, "AI 月度预算不足，写入数据汇总版")
         body = f"# {title}\n\n> （AI 月度预算不足，本篇为数据汇总版）\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -141,6 +159,8 @@ def build_daily_report(
             source_ref={"config_id": config.id},
         )
 
+    # 阶段 2：AI 叙述生成
+    report("AI", 45, f"调用 AI（{model}）生成叙述")
     try:
         result = ai_client.analyze(
             session,
@@ -154,6 +174,7 @@ def build_daily_report(
             provider_id=config.provider_id,
         )
     except BudgetExceeded as e:
+        report("SAVING", 90, "AI 预算超限，写入数据汇总版")
         body = f"# {title}\n\n> （{e}）\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -162,6 +183,7 @@ def build_daily_report(
         )
     except Exception as e:  # noqa: BLE001  AI 调用异常 → 降级
         log.warning("daily_report.ai_failed", market=market, error=str(e))
+        report("SAVING", 90, "AI 调用失败，写入数据汇总版")
         body = f"# {title}\n\n> （AI 调用失败，本篇为数据汇总版）\n\n{data_md}{DISCLAIMER}"
         return _upsert(
             session, market, on_date,
@@ -169,6 +191,8 @@ def build_daily_report(
             degraded_reason=f"AI 调用失败：{e}", source_ref={"config_id": config.id},
         )
 
+    # 阶段 3：写入文档
+    report("SAVING", 90, "写入日报文档")
     # result.response 已含 DISCLAIMER；附数据明细在末尾便于核对
     body = f"# {title}\n\n{result.response}\n\n---\n\n<details>\n<summary>数据明细</summary>\n\n{data_md}\n\n</details>"
     return _upsert(

@@ -38,6 +38,20 @@ export interface ReportConfig {
   updated_at: string | null;
 }
 
+export interface ReportJob {
+  id: number;
+  market: string;
+  status: "PENDING" | "RUNNING" | "SUCCESS" | "FAILED";
+  stage: string;
+  progress: number;
+  message: string | null;
+  document_id: number | null;
+  degraded: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+  finished_at: string | null;
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export function useInsightDocuments(type?: string, market?: string, page = 1, pageSize = 20) {
@@ -82,13 +96,37 @@ export function useMarkInsightRead() {
   });
 }
 
+/** 启动日报生成任务（异步），返回任务对象供轮询。 */
 export function useGenerateDaily() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (market: string) =>
-      (await api.post(`/insights/daily/generate?market=${market}`)).data,
+      (await api.post<ReportJob>(`/insights/daily/generate?market=${market}`)).data,
+  });
+}
+
+/** 轮询单个日报生成任务状态，直到完成/失败。 */
+export function useReportJob(jobId: number | null) {
+  return useQuery({
+    queryKey: ["report-job", jobId],
+    queryFn: async () => (await api.get<ReportJob>(`/insights/daily/jobs/${jobId}`)).data,
+    enabled: jobId != null,
+    // 任务进行中每 1.5s 轮询一次；完成/失败后停止
+    refetchInterval: (query) => {
+      const data = query.state.data as ReportJob | undefined;
+      if (!data) return 1500;
+      return data.status === "SUCCESS" || data.status === "FAILED" ? false : 1500;
+    },
+  });
+}
+
+/** 删除一篇洞察文档。 */
+export function useDeleteInsightDoc() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => (await api.delete(`/insights/documents/${id}`)).data,
     onSuccess: () => {
-      setTimeout(() => qc.invalidateQueries({ queryKey: ["insight-docs"] }), 4000);
+      qc.invalidateQueries({ queryKey: ["insight-docs"] });
+      qc.invalidateQueries({ queryKey: ["insight-unread"] });
     },
   });
 }

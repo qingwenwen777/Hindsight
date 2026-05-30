@@ -13,6 +13,7 @@ from app.models.financials import Financial
 from app.models.fx_rate import FxRate
 from app.models.insight import InsightDocument, PriceAlert, ReportConfig, ScreenerRule
 from app.models.journal import Journal, Review
+from app.models.report_job import ReportJob
 from app.models.stock import Price, Stock
 from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
@@ -37,6 +38,7 @@ __all__ = [
     "ReportConfig",
     "ScreenerRule",
     "PriceAlert",
+    "ReportJob",
     "Conversation",
     "ConversationMessage",
     "AiProvider",

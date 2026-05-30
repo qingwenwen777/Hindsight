@@ -200,14 +200,83 @@ def _generate_task(market: str) -> None:
         log.warning("insights.generate_failed", market=market, error=str(e))
 
 
-@router.post("/daily/generate", summary="手动生成日报")
+def _job_dict(job) -> dict:  # noqa: ANN001
+    """序列化任务状态。"""
+    return {
+        "id": job.id,
+        "market": job.market,
+        "status": job.status,
+        "stage": job.stage,
+        "progress": job.progress,
+        "message": job.message,
+        "document_id": job.document_id,
+        "degraded": job.degraded,
+        "created_at": job.created_at.isoformat() if job.created_at else None,
+        "updated_at": job.updated_at.isoformat() if job.updated_at else None,
+        "finished_at": job.finished_at.isoformat() if job.finished_at else None,
+    }
+
+
+@router.post("/daily/generate", summary="手动生成日报（异步任务）")
 def generate_daily(
     market: str = Query(..., description="US/CN/HK/JP"),
     background_tasks: BackgroundTasks = None,  # type: ignore[assignment]
     session: Session = Depends(get_session),
 ) -> dict:
+    """创建一个日报生成任务并在后台执行，立即返回任务状态供前端轮询。
+
+    并发保护：同一市场已有进行中的任务则复用，不重复生成。
+    """
+    from app.services.insights.report_jobs import create_job, run_job
+
     market = market.upper()
     if market not in ("US", "CN", "HK", "JP"):
         raise HTTPException(status_code=422, detail="未知市场")
-    background_tasks.add_task(_generate_task, market)
-    return ok({"market": market, "status": "generating"})
+
+    job, created = create_job(session, market)
+    if created:
+        background_tasks.add_task(run_job, job.id)
+    return ok(_job_dict(job), message="已入队" if created else "已有进行中的任务")
+
+
+@router.get("/daily/jobs/{job_id}", summary="查询日报生成任务状态")
+def get_job_status(job_id: int, session: Session = Depends(get_session)) -> dict:
+    from app.services.insights.report_jobs import get_job
+
+    job = get_job(session, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
+    return ok(_job_dict(job))
+
+
+@router.get("/daily/jobs", summary="日报生成任务列表（最近）")
+def list_jobs(session: Session = Depends(get_session)) -> dict:
+    from app.services.insights.report_jobs import latest_jobs
+
+    jobs = latest_jobs(session, limit=20)
+    return ok([_job_dict(j) for j in jobs])
+
+
+@router.delete("/documents/{doc_id}", summary="删除洞察文档")
+def delete_document(doc_id: int, session: Session = Depends(get_session)) -> dict:
+    """删除一篇洞察文档（日报/筛选点评）。
+
+    解除关联任务对该文档的引用（置空 document_id），避免悬挂外键。
+    """
+    from app.models.report_job import ReportJob
+
+    doc = session.get(InsightDocument, doc_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="文档不存在")
+
+    # 解除任务对该文档的引用
+    jobs = session.exec(
+        select(ReportJob).where(ReportJob.document_id == doc_id)
+    ).all()
+    for j in jobs:
+        j.document_id = None
+        session.add(j)
+
+    session.delete(doc)
+    session.commit()
+    return ok({"deleted": doc_id})
