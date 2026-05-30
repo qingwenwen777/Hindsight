@@ -7,6 +7,7 @@ import { Stat } from "@/components/stats/stat";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
+import { useReviewReminders } from "@/lib/hooks/use-reminders";
 import { useUiStore } from "@/lib/store/ui-store";
 import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 
@@ -18,6 +19,7 @@ export default function DashboardPage() {
   const baseCurrency = useUiStore((s) => s.baseCurrency);
   const { data: summary, isLoading: summaryLoading } = useSummary();
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
+  const { data: reminders } = useReviewReminders();
 
   const totalWeightBase = (holdings ?? []).reduce(
     (acc, h) => acc + Number(h.market_value ?? h.cost_basis ?? 0),
@@ -109,32 +111,48 @@ export default function DashboardPage() {
           <div className="mb-4 flex items-center justify-between">
             <h2 className="text-title font-medium text-primary">需要注意</h2>
             <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium text-secondary">
-              {concentrationAlerts.length} alerts
+              {concentrationAlerts.length + (reminders?.length ?? 0)} alerts
             </span>
           </div>
           <div className="grid gap-3">
-            {concentrationAlerts.length === 0 ? (
+            {concentrationAlerts.length === 0 && (reminders?.length ?? 0) === 0 ? (
               <div className="rounded-md border border-border-default border-l-2 border-l-up bg-base p-3.5">
                 <div className="text-body font-medium text-primary">组合健康</div>
-                <div className="mt-1.5 text-meta text-tertiary">暂无超阈值告警。</div>
+                <div className="mt-1.5 text-meta text-tertiary">暂无超阈值告警与到期复盘。</div>
               </div>
             ) : (
-              concentrationAlerts.map((h) => {
-                const w = (Number(h.market_value ?? h.cost_basis) / totalWeightBase) * 100;
-                return (
-                  <div
-                    key={h.stock_id}
-                    className="rounded-md border border-border-default border-l-2 border-l-down bg-base p-3.5"
+              <>
+                {concentrationAlerts.map((h) => {
+                  const w = (Number(h.market_value ?? h.cost_basis) / totalWeightBase) * 100;
+                  return (
+                    <div
+                      key={h.stock_id}
+                      className="rounded-md border border-border-default border-l-2 border-l-down bg-base p-3.5"
+                    >
+                      <div className="text-body font-medium text-primary">
+                        {h.symbol} 占 <span className="tnum">{w.toFixed(1)}%</span>
+                      </div>
+                      <div className="mt-1.5 text-meta text-tertiary">
+                        超 20% 阈值，建议复查集中度假设。
+                      </div>
+                    </div>
+                  );
+                })}
+                {(reminders ?? []).slice(0, 4).map((r) => (
+                  <Link
+                    key={r.journal_id}
+                    href={`/journals/${r.journal_id}`}
+                    className="block rounded-md border border-border-default border-l-2 border-l-accent bg-base p-3.5 hover:bg-elevated"
                   >
                     <div className="text-body font-medium text-primary">
-                      {h.symbol} 占 <span className="tnum">{w.toFixed(1)}%</span>
+                      {r.name} <span className="tnum text-tertiary">{r.symbol}</span> 待 {r.due_milestone} 天复盘
                     </div>
                     <div className="mt-1.5 text-meta text-tertiary">
-                      超 20% 阈值，建议复查集中度假设。
+                      决策已 <span className="tnum">{r.days_since}</span> 天，去补一条复盘。
                     </div>
-                  </div>
-                );
-              })
+                  </Link>
+                ))}
+              </>
             )}
           </div>
         </Card>

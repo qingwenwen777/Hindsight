@@ -2,8 +2,8 @@
 
 import { Bell, Moon, Search, Settings, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 
+import { useReviewReminders } from "@/lib/hooks/use-reminders";
 import { useUiStore, type BaseCurrency } from "@/lib/store/ui-store";
 
 const CURRENCIES: BaseCurrency[] = ["JPY", "USD", "CNY"];
@@ -14,7 +14,8 @@ export function Topbar() {
   const toggleTheme = useUiStore((s) => s.toggleTheme);
   const baseCurrency = useUiStore((s) => s.baseCurrency);
   const setBaseCurrency = useUiStore((s) => s.setBaseCurrency);
-  const [cur, setCur] = useState(false);
+  const { data: reminders } = useReviewReminders();
+  const unread = reminders?.length ?? 0;
 
   const cycleCurrency = () => {
     const idx = CURRENCIES.indexOf(baseCurrency);
@@ -56,10 +57,16 @@ export function Topbar() {
 
         {/* 复盘提醒 */}
         <button
-          className="flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border-default text-secondary hover:bg-elevated hover:text-primary"
+          onClick={() => router.push("/journals")}
+          className="relative flex h-[34px] w-[34px] items-center justify-center rounded-md border border-border-default text-secondary hover:bg-elevated hover:text-primary"
           aria-label="复盘提醒"
         >
           <Bell className="h-4 w-4" />
+          {unread > 0 && (
+            <span className="tnum absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[10px] font-medium text-white">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
         </button>
 
         {/* 设置 */}

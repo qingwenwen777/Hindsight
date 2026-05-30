@@ -107,3 +107,26 @@ def failures(session: Session = Depends(get_session)) -> dict:
         for c in cases
     ]
     return ok(data, meta=Meta(total=len(data)))
+
+
+@router.get("/review-reminders", summary="复盘到期提醒")
+def review_reminders(session: Session = Depends(get_session)) -> dict:
+    """距决策 30/60/90/180/365 天且未复盘的日志提醒。"""
+    from app.services.analysis.reminders import compute_reminders
+
+    items = compute_reminders(session)
+    data = [
+        {
+            "journal_id": r.journal_id,
+            "stock_id": r.stock_id,
+            "symbol": r.symbol,
+            "name": r.name,
+            "decision_type": r.decision_type,
+            "decision_date": r.decision_date,
+            "days_since": r.days_since,
+            "due_milestone": r.due_milestone,
+            "overdue_days": r.overdue_days,
+        }
+        for r in items
+    ]
+    return ok(data, meta=Meta(total=len(data)))
