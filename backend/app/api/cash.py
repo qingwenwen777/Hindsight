@@ -165,3 +165,49 @@ def list_cash_flows(
         for r in rows
     ]
     return ok(data, meta=Meta(total=len(data)))
+
+
+@router.get("/cash-summary", summary="现金总览（按币种 + 折算总额）")
+def cash_summary(
+    currency: str = Query("JPY", description="折算目标币种：JPY/USD/CNY/HKD"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """返回各币种现金合计与按当天汇率折算的总现金。
+
+    若当天还没有汇率，则联网拉取实时汇率写入后再折算（失败则用历史回退）。
+    """
+    from datetime import date
+
+    from app.services.data_sync.fx_client import has_rates_for_date, store_live_rates
+
+    target = currency.upper()
+    today = date.today()
+    # 当天没有汇率 → 尝试联网补当天实时汇率
+    if not has_rates_for_date(session, today):
+        try:
+            store_live_rates(session, today)
+        except Exception:  # noqa: BLE001, S110
+            pass  # 失败则回退到历史汇率（get_fx_quote 内部处理）
+
+    summary = cash_service.cash_summary(session, target)
+
+    return ok(
+        {
+            "target_currency": target,
+            "by_currency": [
+                {
+                    "currency": r["currency"],
+                    "balance": to_db_str(r["balance"]),
+                    "converted": to_db_str(r["converted"]) if r["converted"] is not None else None,
+                    "rate": to_db_str(r["rate"]) if r["rate"] is not None else None,
+                    "estimated": r["estimated"],
+                }
+                for r in summary["by_currency"]
+            ],
+            "total": {
+                "currency": summary["total"]["currency"],
+                "amount": to_db_str(summary["total"]["amount"]),
+                "estimated": summary["total"]["estimated"],
+            },
+        }
+    )

@@ -38,6 +38,28 @@ export function useCashFlows(accountId?: number) {
   });
 }
 
+export interface CashSummaryRow {
+  currency: string;
+  balance: string;
+  converted: string | null;
+  rate: string | null;
+  estimated: boolean;
+}
+
+export interface CashSummary {
+  target_currency: string;
+  by_currency: CashSummaryRow[];
+  total: { currency: string; amount: string; estimated: boolean };
+}
+
+export function useCashSummary(currency: string) {
+  return useQuery({
+    queryKey: ["cash-summary", currency],
+    queryFn: async () =>
+      (await api.get<CashSummary>(`/portfolio/cash-summary?currency=${currency}`)).data,
+  });
+}
+
 export function useCreateAccount() {
   const qc = useQueryClient();
   return useMutation({
