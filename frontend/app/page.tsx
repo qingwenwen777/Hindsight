@@ -162,7 +162,7 @@ export default function DashboardPage() {
                   return (
                     <div
                       key={h.stock_id}
-                      className="rounded-md border border-border-default border-l-2 border-l-down bg-base p-3.5"
+                      className="rounded-md border border-border-default bg-base p-3.5"
                     >
                       <div className="text-body font-medium text-primary">
                         {t("dashboard.concentrationPct", { symbol: h.symbol, pct: w.toFixed(1) })}
@@ -177,7 +177,7 @@ export default function DashboardPage() {
                   <Link
                     key={r.journal_id}
                     href={`/journals/${r.journal_id}`}
-                    className="block rounded-md border border-border-default border-l-2 border-l-accent bg-base p-3.5 hover:bg-elevated"
+                    className="block rounded-md border border-border-default bg-base p-3.5 hover:bg-elevated"
                   >
                     <div className="text-body font-medium text-primary">
                       {t("dashboard.reviewDue", {

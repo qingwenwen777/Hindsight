@@ -274,7 +274,7 @@ export default function AiChatPage() {
                   <div
                     key={c.id}
                     className={cn(
-                      "group flex items-center gap-1 rounded-lg px-2.5 py-2 text-body transition-colors",
+                      "group flex min-w-0 items-center gap-1 rounded-lg px-2.5 py-2 text-body transition-colors",
                       active
                         ? "bg-elevated text-primary"
                         : "text-tertiary hover:bg-elevated/60 hover:text-primary",

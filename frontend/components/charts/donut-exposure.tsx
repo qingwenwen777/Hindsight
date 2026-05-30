@@ -19,20 +19,19 @@ interface DonutExposureProps {
 }
 
 /**
- * 优雅的环形图配色：低饱和、和谐的现代色板（参考 Tailwind 500/400 调性），
- * 避免刺眼的高饱和原色；超阈值切片不再用刺眼描边，改为图例侧的柔和提示点。
+ * 优雅低调的配色：柔和、去饱和的现代色板，适配深浅主题，避免刺眼原色。
  */
 const PALETTE = [
-  "#6366F1", // indigo
-  "#14B8A6", // teal
-  "#F59E0B", // amber
-  "#EC4899", // pink
-  "#0EA5E9", // sky
-  "#8B5CF6", // violet
-  "#10B981", // emerald
-  "#F43F5E", // rose
-  "#64748B", // slate
-  "#EAB308", // yellow
+  "#7C8CF8", // 柔和靛蓝
+  "#5EC2B7", // 雾感青绿
+  "#E8B978", // 暖沙金
+  "#E59AB8", // 柔玫瑰
+  "#8FB8E6", // 雾蓝
+  "#A99BE0", // 淡紫
+  "#7FC8A0", // 鼠尾草绿
+  "#E89B8B", // 陶土橙
+  "#9AA7B8", // 灰蓝
+  "#D9C26E", // 哑光黄
 ];
 
 function renderActiveShape(props: any) {
@@ -85,9 +84,12 @@ export function DonutExposure({ slices, height = 300 }: DonutExposureProps) {
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-center sm:gap-8">
       {/* 环形图 + 中心总览 */}
-      <div className="relative shrink-0" style={{ width: height, height }}>
+      <div
+        className="relative shrink-0 [&_*:focus]:outline-none [&_svg]:outline-none"
+        style={{ width: height, height }}
+      >
         <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
+          <PieChart tabIndex={-1} style={{ outline: "none" }}>
             <Pie
               data={data}
               dataKey="value"
@@ -104,11 +106,17 @@ export function DonutExposure({ slices, height = 300 }: DonutExposureProps) {
               activeShape={renderActiveShape}
               onMouseEnter={(_, i) => setActive(i)}
               onMouseLeave={() => setActive(null)}
+              tabIndex={-1}
               isAnimationActive
               animationDuration={600}
             >
               {data.map((entry) => (
-                <Cell key={entry.name} fill={entry.color} style={{ outline: "none" }} />
+                <Cell
+                  key={entry.name}
+                  fill={entry.color}
+                  tabIndex={-1}
+                  style={{ outline: "none" }}
+                />
               ))}
             </Pie>
           </PieChart>

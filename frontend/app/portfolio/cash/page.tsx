@@ -129,16 +129,22 @@ export default function CashPage() {
                 ) : (
                   <span className="text-body font-medium text-primary">{a.name}</span>
                 )}
-                <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge text-secondary">
+                {/* 货币徽章：hover 时淡出，给操作按钮让位 */}
+                <span
+                  className={cn(
+                    "rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge text-secondary transition-opacity",
+                    !editing && "group-hover:opacity-0",
+                  )}
+                >
                   {a.currency}
                 </span>
               </div>
               <div className="tnum mt-3 text-mono-lg text-primary">{formatMoney(a.balance, a.currency)}</div>
               {a.broker && <div className="mt-1 text-caption text-tertiary">{a.broker}</div>}
 
-              {/* 操作按钮（hover 显示） */}
+              {/* 操作按钮（hover 显示，占据货币徽章位置） */}
               <div
-                className="absolute right-3 top-3 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+                className="absolute right-4 top-3.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
                 onClick={(e) => e.stopPropagation()}
               >
                 {editing ? (
