@@ -69,6 +69,24 @@ def get_summary(
 
     today = date.today()
 
+    # 若存在与目标币种不同的持仓币种、且当前无任何可用汇率，则联网拉取实时汇率兜底。
+    # （已有历史/当天汇率时不覆盖，保证可复现与离线可用。）
+    foreign = {ph.stock.currency.upper() for ph in items if ph.stock.currency.upper() != currency}
+    if foreign:
+        from app.services.data_sync.fx_client import store_live_rates
+
+        missing = []
+        for fc in foreign:
+            try:
+                get_fx_quote(session, fc, currency, today)
+            except FxRateUnavailable:
+                missing.append(fc)
+        if missing:
+            try:
+                store_live_rates(session, today)
+            except Exception:  # noqa: BLE001, S110
+                pass
+
     def _conv(amount: Decimal | None, from_ccy: str) -> Decimal | None:
         nonlocal estimated
         if amount is None:

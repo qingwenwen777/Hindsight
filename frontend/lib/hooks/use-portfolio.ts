@@ -21,11 +21,12 @@ export function useHoldings() {
   });
 }
 
-/** 组合汇总 */
-export function useSummary() {
+/** 组合汇总（按基准币种换算，实时汇率） */
+export function useSummary(currency = "JPY") {
   return useQuery({
-    queryKey: ["summary"],
-    queryFn: async () => (await api.get<PortfolioSummary>("/portfolio/summary")).data,
+    queryKey: ["summary", currency],
+    queryFn: async () =>
+      (await api.get<PortfolioSummary>(`/portfolio/summary?currency=${currency}`)).data,
   });
 }
 

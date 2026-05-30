@@ -44,6 +44,6 @@ def test_record_then_holdings(client: TestClient, session: Session) -> None:
     assert pos["shares"] == "100"
     assert pos["cost_basis"] == "1000.00"
 
-    summary = client.get("/api/v1/portfolio/summary").json()
+    summary = client.get("/api/v1/portfolio/summary?currency=CNY").json()
     assert summary["data"]["positions"] == 1
     assert summary["data"]["total_cost"] == "1000.00"

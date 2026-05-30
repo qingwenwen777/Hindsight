@@ -29,7 +29,7 @@ import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 export default function DashboardPage() {
   const { t } = useT();
   const baseCurrency = useUiStore((s) => s.baseCurrency);
-  const { data: summary, isLoading: summaryLoading } = useSummary();
+  const { data: summary, isLoading: summaryLoading } = useSummary(baseCurrency);
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
   const { data: reminders } = useReviewReminders();
   const { data: equity } = useEquityCurve();
