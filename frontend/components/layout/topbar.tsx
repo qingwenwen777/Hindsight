@@ -2,6 +2,7 @@
 
 import { Bell, Moon, Search, Settings, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
 import { useUiStore, type BaseCurrency } from "@/lib/store/ui-store";
@@ -16,6 +17,20 @@ export function Topbar() {
   const setBaseCurrency = useUiStore((s) => s.setBaseCurrency);
   const { data: reminders } = useReviewReminders();
   const unread = reminders?.length ?? 0;
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // 按 "/" 聚焦搜索（输入框内除外）
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (e.key === "/" && tag !== "INPUT" && tag !== "TEXTAREA") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
 
   const cycleCurrency = () => {
     const idx = CURRENCIES.indexOf(baseCurrency);
@@ -24,16 +39,22 @@ export function Topbar() {
 
   return (
     <header className="flex h-[60px] shrink-0 items-center gap-5 border-b border-border-subtle bg-surface px-6 card-shadow">
-      {/* 全局搜索（pill 样式） */}
+      {/* 全局搜索（pill 样式，点击/聚焦后回车进关注页；Cmd+K 开命令面板） */}
       <div className="flex h-10 min-w-[260px] max-w-[520px] flex-1 items-center gap-2.5 rounded-pill bg-elevated px-4 text-tertiary">
         <Search className="h-4 w-4" />
         <input
-          placeholder="搜索标的、决策、日志…"
+          ref={searchRef}
+          placeholder="搜索标的、决策、日志…（按 / 聚焦）"
           className="w-full bg-transparent text-body text-primary outline-none placeholder:text-tertiary"
           onKeyDown={(e) => {
-            if (e.key === "Enter") router.push("/watchlist");
+            if (e.key === "Enter" && e.currentTarget.value.trim()) {
+              router.push(`/watchlist`);
+            }
           }}
         />
+        <kbd className="hidden rounded border border-border-default px-1.5 py-0.5 text-caption text-tertiary sm:inline">
+          ⌘K
+        </kbd>
       </div>
 
       <div className="flex items-center gap-2">
