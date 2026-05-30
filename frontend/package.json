@@ -33,7 +33,10 @@
     "@radix-ui/react-toast": "^1.2.1",
     "@radix-ui/react-dropdown-menu": "^2.1.1",
     "@radix-ui/react-select": "^2.1.1",
-    "cmdk": "^1.0.0"
+    "cmdk": "^1.0.0",
+    "react-markdown": "^9.0.1",
+    "remark-gfm": "^4.0.0",
+    "rehype-sanitize": "^6.0.0"
   },
   "devDependencies": {
     "typescript": "^5.5.4",

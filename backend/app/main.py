@@ -98,15 +98,18 @@ async def health() -> dict:
 from app.api import (  # noqa: E402
     admin,
     ai,
+    alerts,
     benchmark,
     biases,
     cash,
     corporate_actions,
     exposure,
+    insights,
     journals,
     portfolio,
     reports,
     returns,
+    screener,
     stocks,
     transactions,
     watchlist,
@@ -126,3 +129,6 @@ app.include_router(biases.router, prefix=settings.api_prefix)
 app.include_router(reports.router, prefix=settings.api_prefix)
 app.include_router(watchlist.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)
+app.include_router(insights.router, prefix=settings.api_prefix)
+app.include_router(screener.router, prefix=settings.api_prefix)
+app.include_router(alerts.router, prefix=settings.api_prefix)

@@ -27,6 +27,8 @@ TASK_MODEL_MAP: dict[str, str] = {
     "FAILURE_PATTERN": SONNET,  # v1.1 由 Opus 降级控成本
     "QUARTERLY_REVIEW": SONNET,
     "CHAT": SONNET,
+    "DAILY_REPORT": SONNET,
+    "SCREENER_REVIEW": SONNET,
 }
 
 # 模型定价（USD / 百万 token），(input, output)。用于成本估算。

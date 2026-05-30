@@ -72,3 +72,70 @@ def render_devils_advocate(decision: str) -> str:
 
 def render_failure_pattern(losing_trades_summary: str) -> str:
     return FAILURE_PATTERN.format(losing_trades_summary=losing_trades_summary)
+
+
+# Prompt 模板 4 — 每日日报
+DAILY_REPORT = """你是一位资深投资教练，为用户撰写 {market} 市场的每日复盘日报。
+
+下面是系统已精确计算好的数据（数字一律以此为准，禁止改动或自行计算）：
+{context}
+
+用户的重点关注：{focus}
+用户设定的额外约束：{constraints}
+
+请用 {language} 写一份结构化 Markdown 日报，包含（按需省略空板块）：
+1. 市场概览（用给定指数数据，一两句）
+2. 我的持仓/关注异动（解读给定的涨跌，不臆测原因为既成事实，可提示"需核实"）
+3. 触及目标价/止损价的提醒（如有，提示对照当初决策逻辑）
+4. 与决策日志的对照（逻辑是否仍成立的定性思考）
+5. 今日待办（复盘到期 / 集中度）
+
+硬性要求：
+- 语气 {tone}，详略 {detail}
+- 只使用上面给定的数字，不得编造或引用训练数据中的具体数字
+- 不预测股价、不给买卖信号、不下买卖结论
+- 输出纯 Markdown，不要代码围栏包裹整体
+"""
+
+# Prompt 模板 5 — 筛选结果定性点评
+SCREENER_REVIEW = """你是一位资深投资教练。用户用自己的硬性规则筛出了以下标的，
+下面是系统提供的精确数据（数字以此为准，禁止改动或自行计算）：
+{context}
+
+请用 {language} 为每个标的写定性点评，每只包含四点：
+- 多方观点（看多的逻辑可能是什么）
+- 空方观点（看空/质疑的角度）
+- 主要风险
+- 建议补充调研的方向（用户该去查证什么）
+
+硬性要求：
+- 严禁给出买入/卖出/持有的操作建议，严禁预测目标价或"必涨/必跌"
+- 只使用给定数字，不编造
+- 平衡呈现多空，你不是来推荐的，是来帮用户想得更全面的
+- 输出纯 Markdown，按标的用二级/三级标题组织
+"""
+
+
+def render_daily_report(
+    context: str,
+    *,
+    market: str,
+    focus: str,
+    constraints: str,
+    language: str,
+    tone: str,
+    detail: str,
+) -> str:
+    return DAILY_REPORT.format(
+        context=context,
+        market=market,
+        focus=focus or "（无特别指定，按通用重点）",
+        constraints=constraints or "（无）",
+        language=language,
+        tone=tone,
+        detail=detail,
+    )
+
+
+def render_screener_review(context: str, *, language: str) -> str:
+    return SCREENER_REVIEW.format(context=context, language=language)

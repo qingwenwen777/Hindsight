@@ -10,6 +10,7 @@ import {
   PieChart,
   Plus,
   PlusCircle,
+  ScanSearch,
   Search,
   Settings,
   Star,
@@ -39,6 +40,8 @@ const NAV_COMMANDS: NavCmd[] = [
   { labelKey: "nav.benchmark", href: "/analytics/benchmark", icon: GitCompareArrows },
   { labelKey: "nav.exposure", href: "/analytics/exposure", icon: PieChart },
   { labelKey: "nav.emotion", href: "/analytics/emotion", icon: Heart },
+  { labelKey: "nav.insightsReports", href: "/insights", icon: CandlestickChart },
+  { labelKey: "nav.screener", href: "/insights/screener", icon: ScanSearch },
   { labelKey: "nav.aiChat", href: "/ai/chat", icon: Bot },
   { labelKey: "nav.settings", href: "/settings", icon: Settings },
 ];

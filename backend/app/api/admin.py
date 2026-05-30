@@ -2,15 +2,17 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, Query
 from sqlmodel import Session, select
 
 from app.core.response import Meta, ok
-from app.database import get_session
+from app.database import engine, get_session
+from app.logging_config import get_logger
 from app.models.sync_log import SyncLog
 from app.services.data_sync.sync_service import sync_market_prices
 
 router = APIRouter(prefix="/admin", tags=["admin"])
+log = get_logger(__name__)
 
 
 @router.post("/sync/prices")
@@ -153,3 +155,50 @@ def sync_financials(
         updated += 1
     session.commit()
     return ok({"updated": updated, "failed": failed, "total": len(stocks)})
+
+
+def _seed_universe_task(market: str | None, do_sync: bool) -> None:
+    """后台任务：扩充股票池。"""
+    try:
+        from scripts.seed_universe import seed_universe
+
+        markets = [market.upper()] if market else ["US", "HK", "JP", "CN"]
+        seed_universe(markets, do_sync=do_sync)
+    except Exception as e:  # noqa: BLE001
+        log.warning("admin.seed_universe_failed", market=market, error=str(e))
+
+
+@router.post("/seed-universe", summary="扩充股票池（成分股）")
+def seed_universe_endpoint(
+    background_tasks: BackgroundTasks,
+    market: str | None = Query(None, description="US/CN/HK/JP；空为全部"),
+    sync: bool = Query(True, description="是否同步行情/财务"),
+) -> dict:
+    """后台批量登记各市场精选成分股并同步。"""
+    background_tasks.add_task(_seed_universe_task, market, sync)
+    return ok({"status": "seeding", "market": market or "ALL"})
+
+
+@router.get("/universe-status", summary="股票池数据完备度")
+def universe_status(session: Session = Depends(get_session)) -> dict:
+    """各市场：已登记 / 有行情 / 有财务 计数。"""
+    from app.models.financials import Financial
+    from app.models.stock import Price, Stock
+
+    out: dict[str, dict] = {}
+    for market in ("US", "CN", "HK", "JP"):
+        stocks = list(session.exec(select(Stock).where(Stock.market == market)).all())
+        registered = len(stocks)
+        with_price = 0
+        with_fin = 0
+        for st in stocks:
+            if session.exec(select(Price.date).where(Price.stock_id == st.id).limit(1)).first():
+                with_price += 1
+            if session.exec(select(Financial.id).where(Financial.stock_id == st.id).limit(1)).first():
+                with_fin += 1
+        out[market] = {
+            "registered": registered,
+            "with_price": with_price,
+            "with_financials": with_fin,
+        }
+    return ok(out)

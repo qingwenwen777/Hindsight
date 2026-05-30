@@ -9,6 +9,7 @@ from app.models.corporate_action import CorporateAction
 from app.models.fee_rule import FeeRule
 from app.models.financials import Financial
 from app.models.fx_rate import FxRate
+from app.models.insight import InsightDocument, PriceAlert, ReportConfig, ScreenerRule
 from app.models.journal import Journal, Review
 from app.models.stock import Price, Stock
 from app.models.sync_log import SyncLog
@@ -30,4 +31,8 @@ __all__ = [
     "AiInsight",
     "Watchlist",
     "Financial",
+    "InsightDocument",
+    "ReportConfig",
+    "ScreenerRule",
+    "PriceAlert",
 ]

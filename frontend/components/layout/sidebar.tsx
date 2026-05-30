@@ -13,6 +13,7 @@ import {
   PieChart,
   Receipt,
   Scale,
+  ScanSearch,
   Settings,
   Star,
   TrendingUp,
@@ -21,6 +22,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { useInsightUnread } from "@/lib/hooks/use-insights";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,13 @@ const NAV_GROUPS: {
     ],
   },
   {
+    titleKey: "nav.group.insights",
+    items: [
+      { href: "/insights", labelKey: "nav.insightsReports", icon: CandlestickChart },
+      { href: "/insights/screener", labelKey: "nav.screener", icon: ScanSearch },
+    ],
+  },
+  {
     titleKey: "nav.group.ai",
     items: [{ href: "/ai/chat", labelKey: "nav.aiChat", icon: Bot }],
   },
@@ -70,6 +79,7 @@ export function Sidebar() {
   const { t } = useT();
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const setCollapsed = useUiStore((s) => s.setSidebarCollapsed);
+  const { data: insightUnread } = useInsightUnread();
 
   return (
     <aside
@@ -105,6 +115,7 @@ export function Sidebar() {
                   item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
                 const Icon = item.icon;
                 const label = t(item.labelKey);
+                const showDot = item.href === "/insights" && (insightUnread ?? 0) > 0;
                 return (
                   <Link
                     key={item.href}
@@ -118,8 +129,16 @@ export function Sidebar() {
                       collapsed && "justify-center px-0",
                     )}
                   >
-                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    <span className="relative flex items-center">
+                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                      {showDot && (
+                        <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
+                      )}
+                    </span>
                     {!collapsed && <span className="truncate">{label}</span>}
+                    {!collapsed && showDot && (
+                      <span className="ml-auto h-1.5 w-1.5 rounded-full bg-accent" />
+                    )}
                   </Link>
                 );
               })}
