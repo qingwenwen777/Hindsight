@@ -17,9 +17,32 @@ export const metadata: Metadata = {
   description: "记录、分析与复盘你的投资决策，对抗认知偏差。",
 };
 
+// 首屏前应用主题，消除 FOUC（主题闪烁）。在任何绘制前同步读取 localStorage。
+const themeInitScript = `
+(function () {
+  try {
+    var raw = localStorage.getItem('tradeai-ui');
+    var theme = 'dark', scheme = 'western';
+    if (raw) {
+      var s = JSON.parse(raw).state || {};
+      if (s.theme) theme = s.theme;
+      if (s.colorScheme) scheme = s.colorScheme;
+    }
+    var el = document.documentElement;
+    el.classList.remove('dark', 'light');
+    el.classList.add(theme);
+    el.style.colorScheme = theme;
+    el.setAttribute('data-color-scheme', scheme);
+  } catch (e) {}
+})();
+`;
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="zh-CN" className="dark" data-color-scheme="western" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className={`${inter.variable} ${jetbrainsMono.variable} font-sans antialiased`}>
         <ThemeProvider>
           <QueryProvider>

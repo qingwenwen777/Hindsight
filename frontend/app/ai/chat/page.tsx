@@ -1,19 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { Bot, Plus, Send, Sparkles, User, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { useAiBudget, useAiChat, type ContextRef } from "@/lib/hooks/use-ai";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
 import { formatMoney } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 interface Msg {
   role: "user" | "ai";
   text: string;
   meta?: { model: string; cost: string | null; cached: boolean };
 }
+
+const SUGGESTIONS = [
+  "复盘我当前持仓的集中度风险",
+  "用魔鬼代言人视角挑战我的多头逻辑",
+  "我最近的交易里有哪些认知偏差？",
+];
 
 export default function AiChatPage() {
   const { data: budget } = useAiBudget();
@@ -23,6 +28,23 @@ export default function AiChatPage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<ContextRef[]>([]);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+
+  // 自动滚到底
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, chat.isPending]);
+
+  // textarea 自适应高度
+  const autosize = () => {
+    const ta = taRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 200)}px`;
+  };
 
   const toggleHolding = (stockId: number) => {
     setSelected((prev) =>
@@ -32,15 +54,16 @@ export default function AiChatPage() {
     );
   };
 
-  const send = () => {
-    if (!input.trim()) return;
-    const userMsg = input.trim();
+  const send = (preset?: string) => {
+    const userMsg = (preset ?? input).trim();
+    if (!userMsg || chat.isPending) return;
     setMessages((m) => [...m, { role: "user", text: userMsg }]);
     setInput("");
+    if (taRef.current) taRef.current.style.height = "auto";
     chat.mutate(
       { message: userMsg, context_refs: selected },
       {
-        onSuccess: (data) => {
+        onSuccess: (data) =>
           setMessages((m) => [
             ...m,
             {
@@ -48,36 +71,43 @@ export default function AiChatPage() {
               text: data.response,
               meta: { model: data.model, cost: data.cost_jpy, cached: data.cached },
             },
-          ]);
-        },
-        onError: (e) => {
-          setMessages((m) => [...m, { role: "ai", text: `出错：${(e as Error).message}` }]);
-        },
+          ]),
+        onError: (e) =>
+          setMessages((m) => [...m, { role: "ai", text: `出错：${(e as Error).message}` }]),
       },
     );
   };
 
   const usagePct = budget ? Math.round(budget.usage_ratio * 100) : 0;
+  const selectedHoldings = (holdings ?? []).filter((h) =>
+    selected.some((r) => r.type === "HOLDING" && r.id === h.stock_id),
+  );
+  const empty = messages.length === 0;
 
   return (
-    <div className="flex h-full flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-h1 text-primary">AI 对话</h1>
-          <p className="text-small text-secondary">基于你的持仓与日志的投资教练。</p>
+    <div className="mx-auto flex h-[calc(100vh-60px-3rem)] max-w-3xl flex-col">
+      {/* 顶部：标题 + 预算 */}
+      <div className="flex items-center justify-between pb-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-elevated">
+            <Sparkles className="h-4 w-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-title font-medium text-primary">AI 投资教练</h1>
+            <p className="text-caption text-tertiary">基于你的持仓与日志 · 仅定性分析</p>
+          </div>
         </div>
-        {/* 预算进度条 */}
         {budget && (
-          <div className="w-64">
-            <div className="flex justify-between text-caption text-secondary">
-              <span>本月 AI 预算</span>
+          <div className="w-44">
+            <div className="flex justify-between text-caption text-tertiary">
+              <span>本月预算</span>
               <span className="tnum">
-                {formatMoney(budget.used_jpy)} / {formatMoney(budget.monthly_budget_jpy)}
+                {formatMoney(budget.used_jpy)}/{formatMoney(budget.monthly_budget_jpy)}
               </span>
             </div>
-            <div className="mt-1 h-2 overflow-hidden rounded-full bg-elevated">
+            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-elevated">
               <div
-                className={`h-full ${budget.is_close ? "bg-warn" : "bg-accent"}`}
+                className={cn("h-full rounded-full", budget.is_close ? "bg-warn" : "bg-primary/60")}
                 style={{ width: `${Math.min(usagePct, 100)}%` }}
               />
             </div>
@@ -85,85 +115,171 @@ export default function AiChatPage() {
         )}
       </div>
 
-      <div className="grid flex-1 grid-cols-4 gap-4 overflow-hidden">
-        {/* Context 选择 */}
-        <Card className="overflow-y-auto">
-          <CardHeader>
-            <CardTitle>引用上下文</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
-            {(holdings ?? []).length === 0 ? (
-              <p className="text-caption text-secondary">暂无持仓</p>
-            ) : (
-              (holdings ?? []).map((h) => {
-                const on = selected.some((r) => r.type === "HOLDING" && r.id === h.stock_id);
-                return (
-                  <button
-                    key={h.stock_id}
-                    onClick={() => toggleHolding(h.stock_id)}
-                    className={`flex w-full items-center justify-between rounded-md px-2 py-1.5 text-small ${
-                      on ? "bg-accent/10 text-accent" : "text-secondary hover:bg-elevated"
-                    }`}
-                  >
-                    <span>{h.name}</span>
-                    <span className="tnum text-caption">{h.symbol}</span>
-                  </button>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 对话区 */}
-        <Card className="col-span-3 flex flex-col overflow-hidden">
-          <CardContent className="flex flex-1 flex-col gap-3 overflow-y-auto p-4">
-            {messages.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center text-small text-secondary">
-                选择左侧持仓作为上下文，提问吧。
-              </div>
-            ) : (
-              messages.map((m, i) => (
-                <div
-                  key={i}
-                  className={`max-w-[80%] rounded-lg px-3 py-2 text-small ${
-                    m.role === "user"
-                      ? "self-end bg-accent/10 text-primary"
-                      : "self-start bg-elevated text-primary"
-                  }`}
+      {/* 对话区 */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
+        {empty ? (
+          <div className="flex h-full flex-col items-center justify-center gap-6 px-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-elevated">
+              <Bot className="h-7 w-7 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-display text-primary">问点什么？</h2>
+              <p className="mt-2 text-meta text-tertiary">
+                选几个持仓作为上下文，让 AI 基于你的真实数据复盘。
+              </p>
+            </div>
+            <div className="flex w-full max-w-md flex-col gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => send(s)}
+                  className="rounded-lg border border-border-default bg-surface px-4 py-3 text-left text-body text-secondary transition-colors hover:border-border-strong hover:text-primary"
                 >
-                  <div className="whitespace-pre-wrap">{m.text}</div>
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-6 px-1 pb-4">
+            {messages.map((m, i) => (
+              <div key={i} className="flex gap-4">
+                <div
+                  className={cn(
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+                    m.role === "user" ? "bg-elevated" : "bg-primary text-base",
+                  )}
+                >
+                  {m.role === "user" ? (
+                    <User className="h-4 w-4 text-secondary" />
+                  ) : (
+                    <Bot className="h-4 w-4" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <div className="mb-1 text-caption font-medium text-tertiary">
+                    {m.role === "user" ? "你" : "AI 教练"}
+                  </div>
+                  <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
+                    {m.text}
+                  </div>
                   {m.meta && (
-                    <div className="mt-1 text-caption text-muted">
-                      {m.meta.model} · {m.meta.cached ? "缓存命中" : formatMoney(m.meta.cost)}
+                    <div className="mt-2 flex gap-2 text-caption text-muted">
+                      <span className="rounded border border-border-default px-1.5 py-0.5">
+                        {m.meta.model}
+                      </span>
+                      <span>{m.meta.cached ? "缓存命中" : formatMoney(m.meta.cost)}</span>
                     </div>
                   )}
                 </div>
-              ))
-            )}
+              </div>
+            ))}
             {chat.isPending && (
-              <div className="self-start text-small text-secondary">思考中…</div>
+              <div className="flex gap-4">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-base">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="flex items-center gap-1 pt-2.5">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
+                </div>
+              </div>
             )}
-          </CardContent>
-          <div className="border-t border-border-subtle p-3">
-            <div className="flex gap-2">
-              <Textarea
-                rows={2}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
-                }}
-                placeholder="问 AI 教练…（Cmd/Ctrl+Enter 发送）"
-              />
-              <Button onClick={send} disabled={chat.isPending || !input.trim()}>
-                发送
-              </Button>
-            </div>
-            <p className="mt-2 text-caption text-muted">
-              AI 仅供参考，不构成投资建议，不显示买卖信号。
-            </p>
           </div>
-        </Card>
+        )}
+      </div>
+
+      {/* 输入区（ChatGPT 风格合成器） */}
+      <div className="pt-3">
+        {/* 已选上下文 chips */}
+        {selectedHoldings.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-1.5">
+            {selectedHoldings.map((h) => (
+              <span
+                key={h.stock_id}
+                className="inline-flex items-center gap-1 rounded-full border border-border-default bg-elevated px-2 py-1 text-caption text-secondary"
+              >
+                {h.symbol}
+                <button onClick={() => toggleHolding(h.stock_id)} className="hover:text-primary">
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div className="relative rounded-2xl border border-border-default bg-surface focus-within:border-border-strong">
+          <textarea
+            ref={taRef}
+            rows={1}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              autosize();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+              }
+            }}
+            placeholder="问 AI 教练…（Enter 发送，Shift+Enter 换行）"
+            className="block max-h-[200px] w-full resize-none bg-transparent px-4 pb-12 pt-3.5 text-body text-primary outline-none placeholder:text-tertiary"
+          />
+          {/* 底部操作条 */}
+          <div className="absolute inset-x-2 bottom-2 flex items-center justify-between">
+            <div className="relative">
+              <button
+                onClick={() => setPickerOpen((o) => !o)}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border-default px-2.5 py-1.5 text-caption text-secondary hover:bg-elevated hover:text-primary"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                上下文
+                {selected.length > 0 && (
+                  <span className="tnum rounded-full bg-elevated px-1.5 text-caption">
+                    {selected.length}
+                  </span>
+                )}
+              </button>
+              {pickerOpen && (
+                <div className="absolute bottom-full left-0 mb-2 max-h-64 w-64 overflow-y-auto rounded-lg border border-border-strong bg-elevated p-1 shadow-xl">
+                  {(holdings ?? []).length === 0 ? (
+                    <p className="px-3 py-2 text-caption text-tertiary">暂无持仓可引用</p>
+                  ) : (
+                    (holdings ?? []).map((h) => {
+                      const on = selected.some((r) => r.type === "HOLDING" && r.id === h.stock_id);
+                      return (
+                        <button
+                          key={h.stock_id}
+                          onClick={() => toggleHolding(h.stock_id)}
+                          className={cn(
+                            "flex w-full items-center justify-between rounded-md px-3 py-2 text-body",
+                            on ? "bg-base text-primary" : "text-secondary hover:bg-base",
+                          )}
+                        >
+                          <span className="truncate">{h.name}</span>
+                          <span className="tnum text-caption text-tertiary">{h.symbol}</span>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => send()}
+              disabled={chat.isPending || !input.trim()}
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-btn-primary text-btn-primary-fg transition-opacity hover:opacity-90 disabled:opacity-30"
+              aria-label="发送"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+        <p className="mt-2 text-center text-caption text-muted">
+          AI 仅供参考，不构成投资建议，不显示买卖信号。
+        </p>
       </div>
     </div>
   );

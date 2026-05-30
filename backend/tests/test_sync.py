@@ -123,3 +123,29 @@ def test_all_sources_fail(session: Session, monkeypatch) -> None:  # noqa: ANN00
     r = svc.sync_stock_prices(session, stock, full=True, write_log=False)
     assert not r.ok
     assert "所有数据源失败" in r.message
+
+
+def test_validate_bar_clamps_rounding_overshoot() -> None:
+    """前复权舍入导致 close 略高于 high（<0.5%）→ 钳制到 high，不丢弃。"""
+    bar = PriceBar(
+        date=date(2003, 1, 2),
+        open=Decimal("12.00"),
+        high=Decimal("12.50"),
+        low=Decimal("11.80"),
+        close=Decimal("12.53"),  # 比 high 高 0.24%，舍入误差
+    )
+    validate_bar(bar)  # 不抛错
+    assert bar.close == Decimal("12.50")  # 钳到上界
+
+
+def test_validate_bar_clamps_open_below_low() -> None:
+    """open 略低于 low（舍入）→ 钳到 low。"""
+    bar = PriceBar(
+        date=date(2003, 1, 2),
+        open=Decimal("9.97"),
+        high=Decimal("10.50"),
+        low=Decimal("10.00"),
+        close=Decimal("10.20"),
+    )
+    validate_bar(bar)
+    assert bar.open == Decimal("10.00")

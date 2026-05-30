@@ -5,18 +5,19 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/20 disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-body font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-border-strong disabled:pointer-events-none disabled:opacity-40",
   {
     variants: {
       variant: {
-        default: "border border-accent bg-accent text-accent-foreground hover:bg-accent-hover hover:border-accent-hover",
-        secondary: "border border-border-default bg-transparent text-primary hover:border-border-strong",
+        // 主按钮：纯黑底上近白填充（Linear/Vercel/TradingView 风格），不再用高饱和蓝
+        default: "bg-btn-primary text-btn-primary-fg hover:opacity-90",
+        secondary: "border border-border-default bg-transparent text-primary hover:bg-elevated hover:border-border-strong",
         outline: "border border-border-default bg-transparent text-secondary hover:bg-elevated hover:text-primary",
         ghost: "border border-transparent bg-transparent text-secondary hover:bg-elevated hover:text-primary",
         quiet: "border border-border-default bg-transparent text-secondary hover:bg-elevated hover:text-primary",
-        danger: "border border-border-default bg-transparent text-danger hover:bg-elevated",
-        up: "border border-up bg-up/10 text-up hover:bg-up/20",
-        down: "border border-down bg-down/10 text-down hover:bg-down/20",
+        danger: "border border-border-default bg-transparent text-danger hover:bg-danger/10 hover:border-danger/40",
+        up: "border border-up/40 bg-up/10 text-up hover:bg-up/20",
+        down: "border border-down/40 bg-down/10 text-down hover:bg-down/20",
       },
       size: {
         default: "h-[34px] px-4 py-0",

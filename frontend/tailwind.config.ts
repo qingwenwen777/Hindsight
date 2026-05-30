@@ -32,6 +32,8 @@ const config: Config = {
         accent: "var(--accent)",
         "accent-hover": "var(--accent-hover)",
         "accent-foreground": "var(--accent-foreground)",
+        "btn-primary": "var(--btn-primary-bg)",
+        "btn-primary-fg": "var(--btn-primary-fg)",
         up: "var(--up)",
         down: "var(--down)",
         warn: "var(--warn)",
