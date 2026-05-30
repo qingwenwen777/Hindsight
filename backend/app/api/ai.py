@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -179,7 +181,75 @@ def chat(payload: ChatRequest, session: Session = Depends(get_session)) -> dict:
     )
 
 
-@router.post("/quarterly-review", summary="AI 季度模式分析")
+@router.post("/chat/stream", summary="AI 对话（流式 SSE）")
+def chat_stream(payload: ChatRequest, session: Session = Depends(get_session)):  # noqa: ANN201
+    """与 /chat 相同，但以 Server-Sent Events 流式逐段返回 AI 输出。
+
+    事件格式（每条 `data: <json>\\n\\n`）：
+      {"type":"meta","model":...,"cached":...,"degraded":...}
+      {"type":"delta","text":...}
+      {"type":"done","cost_jpy":...,"prompt_tokens":...,"completion_tokens":...}
+      {"type":"error","message":...}
+    """
+    refs = [(r.type, r.id) for r in payload.context_refs]
+    context = context_builder.build_chat_context(session, refs)
+    user_content = (
+        f"## 可引用的数据（数字由系统精确计算）\n{context}\n\n"
+        f"## 用户问题\n{payload.message}"
+    )
+
+    def event_stream():
+        def sse(obj: dict) -> str:
+            return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+
+        try:
+            events = ai_client.analyze_stream(
+                session,
+                prompt_type="CHAT",
+                system_prompt=prompts.SYSTEM_BASE,
+                user_content=user_content,
+                target_type="PORTFOLIO",
+                target_id=None,
+                max_tokens=1500,
+            )
+            for ev in events:
+                if ev.type == "meta":
+                    yield sse(
+                        {
+                            "type": "meta",
+                            "model": ev.model,
+                            "cached": ev.cached,
+                            "degraded": ev.degraded,
+                        }
+                    )
+                elif ev.type == "delta":
+                    yield sse({"type": "delta", "text": ev.text})
+                elif ev.type == "done":
+                    yield sse(
+                        {
+                            "type": "done",
+                            "model": ev.model,
+                            "cached": ev.cached,
+                            "degraded": ev.degraded,
+                            "cost_jpy": to_db_str(ev.cost_jpy),
+                            "prompt_tokens": ev.prompt_tokens,
+                            "completion_tokens": ev.completion_tokens,
+                        }
+                    )
+                elif ev.type == "error":
+                    yield sse({"type": "error", "message": ev.message})
+        except BudgetExceeded as e:
+            yield sse({"type": "error", "message": str(e)})
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # 禁用 nginx 缓冲，保证逐段下发
+        },
+    )
 def quarterly_review(
     year: int = Query(...),
     quarter: int = Query(..., ge=1, le=4),

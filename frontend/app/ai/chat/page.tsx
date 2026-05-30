@@ -3,7 +3,7 @@
 import { Bot, Plus, Send, User, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { useAiBudget, useAiChat, type ContextRef } from "@/lib/hooks/use-ai";
+import { streamAiChat, useAiBudget, type ContextRef } from "@/lib/hooks/use-ai";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
 import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 interface Msg {
   role: "user" | "ai";
   text: string;
+  streaming?: boolean;
   meta?: { model: string; promptTokens: number; completionTokens: number; cached: boolean };
 }
 
@@ -24,12 +25,12 @@ export default function AiChatPage() {
   const { t } = useT();
   const { data: budget } = useAiBudget();
   const { data: holdings } = useHoldings();
-  const chat = useAiChat();
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Msg[]>([]);
   const [selected, setSelected] = useState<ContextRef[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -39,7 +40,7 @@ export default function AiChatPage() {
   // 自动滚到底
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, chat.isPending]);
+  }, [messages, sending]);
 
   // textarea 自适应高度
   const autosize = () => {
@@ -59,31 +60,81 @@ export default function AiChatPage() {
 
   const send = (preset?: string) => {
     const userMsg = (preset ?? input).trim();
-    if (!userMsg || chat.isPending) return;
-    setMessages((m) => [...m, { role: "user", text: userMsg }]);
+    if (!userMsg || sending) return;
+    setSending(true);
+    // 先压入用户消息 + 一条占位的流式 AI 消息
+    setMessages((m) => [
+      ...m,
+      { role: "user", text: userMsg },
+      { role: "ai", text: "", streaming: true },
+    ]);
     setInput("");
     if (taRef.current) taRef.current.style.height = "auto";
-    chat.mutate(
-      { message: userMsg, context_refs: selected },
+
+    const refs = selected;
+    // 流式 AI 消息固定在数组末尾
+    const appendDelta = (delta: string) =>
+      setMessages((m) => {
+        const next = [...m];
+        const last = next[next.length - 1];
+        if (last && last.role === "ai") {
+          next[next.length - 1] = { ...last, text: last.text + delta };
+        }
+        return next;
+      });
+
+    streamAiChat(
+      { message: userMsg, context_refs: refs },
       {
-        onSuccess: (data) =>
-          setMessages((m) => [
-            ...m,
-            {
-              role: "ai",
-              text: data.response,
-              meta: {
-                model: data.model,
-                promptTokens: data.prompt_tokens,
-                completionTokens: data.completion_tokens,
-                cached: data.cached,
-              },
-            },
-          ]),
-        onError: (e) =>
-          setMessages((m) => [...m, { role: "ai", text: `${t("ai.errorPrefix")}${(e as Error).message}` }]),
+        onDelta: appendDelta,
+        onDone: (d) =>
+          setMessages((m) => {
+            const next = [...m];
+            const last = next[next.length - 1];
+            if (last && last.role === "ai") {
+              next[next.length - 1] = {
+                ...last,
+                streaming: false,
+                meta: {
+                  model: d.model,
+                  promptTokens: d.prompt_tokens,
+                  completionTokens: d.completion_tokens,
+                  cached: d.cached,
+                },
+              };
+            }
+            return next;
+          }),
+        onError: (msg) =>
+          setMessages((m) => {
+            const next = [...m];
+            const last = next[next.length - 1];
+            if (last && last.role === "ai") {
+              next[next.length - 1] = {
+                ...last,
+                streaming: false,
+                text: last.text || `${t("ai.errorPrefix")}${msg}`,
+              };
+            }
+            return next;
+          }),
       },
-    );
+    )
+      .catch((e) =>
+        setMessages((m) => {
+          const next = [...m];
+          const last = next[next.length - 1];
+          if (last && last.role === "ai") {
+            next[next.length - 1] = {
+              ...last,
+              streaming: false,
+              text: last.text || `${t("ai.errorPrefix")}${(e as Error).message}`,
+            };
+          }
+          return next;
+        }),
+      )
+      .finally(() => setSending(false));
   };
 
   const selectedHoldings = (holdings ?? []).filter((h) =>
@@ -155,9 +206,20 @@ export default function AiChatPage() {
                   <div className="mb-1 text-caption font-medium text-tertiary">
                     {m.role === "user" ? t("ai.you") : t("ai.coach")}
                   </div>
-                  <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
-                    {m.text}
-                  </div>
+                  {m.role === "ai" && m.streaming && m.text === "" ? (
+                    <div className="flex items-center gap-1 pt-1.5">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.3s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
+                    </div>
+                  ) : (
+                    <div className="whitespace-pre-wrap text-body leading-relaxed text-primary">
+                      {m.text}
+                      {m.role === "ai" && m.streaming && (
+                        <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
+                      )}
+                    </div>
+                  )}
                   {m.meta && (
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-caption text-muted">
                       <span className="rounded border border-border-default px-1.5 py-0.5">
@@ -179,18 +241,6 @@ export default function AiChatPage() {
                 </div>
               </div>
             ))}
-            {chat.isPending && (
-              <div className="flex gap-4">
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary text-base">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="flex items-center gap-1 pt-2.5">
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.3s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary [animation-delay:-0.15s]" />
-                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-tertiary" />
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
@@ -274,7 +324,7 @@ export default function AiChatPage() {
             </div>
             <button
               onClick={() => send()}
-              disabled={chat.isPending || !input.trim()}
+              disabled={sending || !input.trim()}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-btn-primary text-btn-primary-fg transition-opacity hover:opacity-90 disabled:opacity-30"
               aria-label={t("ai.send")}
             >

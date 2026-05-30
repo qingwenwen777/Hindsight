@@ -62,11 +62,8 @@ const NAV_GROUPS: {
     items: [
       { href: "/insights", labelKey: "nav.insightsReports", icon: CandlestickChart },
       { href: "/insights/screener", labelKey: "nav.screener", icon: ScanSearch },
+      { href: "/ai/chat", labelKey: "nav.aiChat", icon: Bot },
     ],
-  },
-  {
-    titleKey: "nav.group.ai",
-    items: [{ href: "/ai/chat", labelKey: "nav.aiChat", icon: Bot }],
   },
   {
     titleKey: "nav.group.settings",
