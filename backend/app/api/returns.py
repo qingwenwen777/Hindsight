@@ -87,3 +87,60 @@ def get_returns(
             "note": "简化口径（单段）；逐日估值快照接入后将精确分段",
         }
     )
+
+
+@router.get("/risk-metrics", summary="风险指标 (回撤/夏普/卡玛)")
+def get_risk_metrics(
+    days: int | None = Query(None, description="回溯天数；空为全部"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """基于组合净值曲线计算最大回撤、夏普、卡玛、年化波动等。"""
+    from app.services.analysis.equity import build_equity_curve
+    from app.services.analysis.risk import compute_risk_metrics
+
+    dates, equity = build_equity_curve(session, days)
+    if len(equity) < 2:
+        return ok(
+            {
+                "available": False,
+                "message": "净值数据不足（需要持仓 + 至少 2 个交易日行情）",
+            }
+        )
+    metrics, underwater = compute_risk_metrics(equity)
+    return ok(
+        {
+            "available": True,
+            "total_return_pct": metrics.total_return_pct,
+            "annualized_return_pct": metrics.annualized_return_pct,
+            "annualized_volatility_pct": metrics.annualized_volatility_pct,
+            "max_drawdown_pct": metrics.max_drawdown_pct,
+            "sharpe": metrics.sharpe,
+            "calmar": metrics.calmar,
+            "samples": metrics.n,
+            "drawdown_series": [
+                {"date": dates[p.index], "drawdown_pct": p.drawdown_pct} for p in underwater
+            ],
+        }
+    )
+
+
+@router.get("/equity-curve", summary="组合净值曲线")
+def get_equity_curve(
+    days: int | None = Query(None, description="回溯天数；空为全部"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """返回组合每日净值（归一化到起点 100）+ 原始市值。"""
+    from app.services.analysis.equity import build_equity_curve
+
+    dates, equity = build_equity_curve(session, days)
+    if not equity:
+        return ok({"dates": [], "equity": [], "normalized": []})
+    base = equity[0] if equity[0] != 0 else 1.0
+    normalized = [round(v / base * 100, 4) for v in equity]
+    return ok(
+        {
+            "dates": dates,
+            "equity": [round(v, 2) for v in equity],
+            "normalized": normalized,
+        }
+    )

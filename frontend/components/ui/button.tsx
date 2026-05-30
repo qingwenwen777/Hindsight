@@ -5,22 +5,24 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-small font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-accent/20 disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
-        default: "bg-accent text-accent-foreground hover:bg-accent/90",
-        outline: "border border-border-subtle bg-transparent text-primary hover:bg-elevated",
-        ghost: "text-secondary hover:bg-elevated hover:text-primary",
-        danger: "bg-danger text-white hover:bg-danger/90",
-        up: "bg-up text-white hover:bg-up/90",
-        down: "bg-down text-white hover:bg-down/90",
+        default: "border border-accent bg-accent text-accent-foreground hover:bg-accent-hover hover:border-accent-hover",
+        secondary: "border border-border-default bg-transparent text-primary hover:border-border-strong",
+        outline: "border border-border-default bg-transparent text-secondary hover:bg-elevated hover:text-primary",
+        ghost: "border border-transparent bg-transparent text-secondary hover:bg-elevated hover:text-primary",
+        quiet: "border border-border-default bg-transparent text-secondary hover:bg-elevated hover:text-primary",
+        danger: "border border-border-default bg-transparent text-danger hover:bg-elevated",
+        up: "border border-up bg-up/10 text-up hover:bg-up/20",
+        down: "border border-down bg-down/10 text-down hover:bg-down/20",
       },
       size: {
-        default: "h-9 px-4 py-2",
+        default: "h-[34px] px-4 py-0",
         sm: "h-8 px-3",
         lg: "h-11 px-6",
-        icon: "h-9 w-9",
+        icon: "h-[34px] w-[34px]",
       },
     },
     defaultVariants: { variant: "default", size: "default" },

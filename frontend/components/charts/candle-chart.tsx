@@ -2,6 +2,7 @@
 
 import {
   ColorType,
+  CrosshairMode,
   type IChartApi,
   type ISeriesApi,
   type SeriesMarker,
@@ -14,16 +15,23 @@ import type { PriceBar, IndicatorData } from "@/lib/hooks/use-stock";
 import type { Transaction } from "@/lib/api/types";
 import { useUiStore } from "@/lib/store/ui-store";
 
+interface PriceLine {
+  price: number;
+  color: string;
+  title: string;
+}
+
 interface CandleChartProps {
   prices: PriceBar[];
   indicators?: IndicatorData;
   transactions?: Transaction[];
+  /** 目标价/止损价水平线 */
+  priceLines?: PriceLine[];
   height?: number;
   showBoll?: boolean;
   showMa?: boolean;
 }
 
-/** 读取 CSS 变量当前值 */
 function cssVar(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
   const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -31,15 +39,16 @@ function cssVar(name: string, fallback: string): string {
 }
 
 /**
- * K 线主图（设计文档 8.6）—— lightweight-charts。
- * 蜡烛 + 成交量 + 可选 MA/布林带叠加 + 自有交易买卖点 marker。
+ * K 线主图（TradingView 风格）—— lightweight-charts。
+ * 蜡烛 + 成交量 + MA/布林带叠加 + 目标价/止损价水平线 + 自有交易买卖点 marker。
  * 涨跌色随 colorScheme（asia/western）切换。
  */
 export function CandleChart({
   prices,
   indicators,
   transactions = [],
-  height = 480,
+  priceLines = [],
+  height = 450,
   showBoll = true,
   showMa = true,
 }: CandleChartProps) {
@@ -50,10 +59,13 @@ export function CandleChart({
   useEffect(() => {
     if (!containerRef.current || prices.length === 0) return;
 
-    const upColor = colorScheme === "asia" ? cssVar("--color-red", "#ef5350") : cssVar("--color-green", "#26a69a");
-    const downColor = colorScheme === "asia" ? cssVar("--color-green", "#26a69a") : cssVar("--color-red", "#ef5350");
-    const textColor = cssVar("--text-secondary", "#787b86");
-    const gridColor = cssVar("--border-subtle", "#2a2e39");
+    const green = cssVar("--color-green", "#2aa38e");
+    const red = cssVar("--color-red", "#f05b5b");
+    const upColor = colorScheme === "asia" ? red : green;
+    const downColor = colorScheme === "asia" ? green : red;
+    const textColor = cssVar("--text-tertiary", "#8f8f8f");
+    const gridColor = cssVar("--border-default", "#2a2a2a");
+    const warnColor = cssVar("--warn", "#d9a441");
 
     const chart = createChart(containerRef.current, {
       height,
@@ -61,14 +73,19 @@ export function CandleChart({
         background: { type: ColorType.Solid, color: "transparent" },
         textColor,
         fontFamily: "JetBrains Mono, monospace",
+        fontSize: 11,
       },
       grid: {
-        vertLines: { color: gridColor },
-        horzLines: { color: gridColor },
+        vertLines: { color: gridColor, style: 0 },
+        horzLines: { color: gridColor, style: 0 },
       },
       rightPriceScale: { borderColor: gridColor },
-      timeScale: { borderColor: gridColor, timeVisible: false },
-      crosshair: { mode: 1 },
+      timeScale: { borderColor: gridColor, timeVisible: false, rightOffset: 6 },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: { color: cssVar("--border-strong", "#4a4a4a"), labelBackgroundColor: cssVar("--bg-elevated", "#2b2b2b") },
+        horzLine: { color: cssVar("--border-strong", "#4a4a4a"), labelBackgroundColor: cssVar("--bg-elevated", "#2b2b2b") },
+      },
     });
     chartRef.current = chart;
 
@@ -93,28 +110,46 @@ export function CandleChart({
       }));
     candleSeries.setData(candleData);
 
+    // 目标价/止损价水平线
+    for (const pl of priceLines) {
+      candleSeries.createPriceLine({
+        price: pl.price,
+        color: pl.color,
+        lineWidth: 1,
+        lineStyle: 2, // dashed
+        axisLabelVisible: true,
+        title: pl.title,
+      });
+    }
+
     // 成交量（底部独立刻度）
     const volSeries = chart.addHistogramSeries({
       priceFormat: { type: "volume" },
       priceScaleId: "vol",
     });
-    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    chart.priceScale("vol").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
     volSeries.setData(
       prices
         .filter((p) => p.volume != null)
         .map((p) => ({
           time: p.date as Time,
           value: Number(p.volume),
-          color: Number(p.close) >= Number(p.open) ? `${upColor}80` : `${downColor}80`,
+          color: Number(p.close) >= Number(p.open) ? `${upColor}55` : `${downColor}55`,
         })),
     );
 
-    // 叠加 MA
+    // 叠加 MA / 布林带
     const lineSeriesList: ISeriesApi<"Line">[] = [];
     if (indicators?.indicators) {
       const dates = indicators.dates;
-      const addLine = (values: (number | null)[], color: string) => {
-        const series = chart.addLineSeries({ color, lineWidth: 1, priceLineVisible: false });
+      const addLine = (values: (number | null)[], color: string, width = 1) => {
+        const series = chart.addLineSeries({
+          color,
+          lineWidth: width as 1 | 2 | 3,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+        });
         series.setData(
           values
             .map((v, i) => ({ time: dates[i] as Time, value: v }))
@@ -135,8 +170,8 @@ export function CandleChart({
         });
       }
       if (showBoll && indicators.indicators.boll) {
-        addLine(indicators.indicators.boll.upper, "#26A69A");
-        addLine(indicators.indicators.boll.lower, "#EF5350");
+        addLine(indicators.indicators.boll.upper, warnColor);
+        addLine(indicators.indicators.boll.lower, warnColor);
       }
     }
 
@@ -150,7 +185,7 @@ export function CandleChart({
           position: t.type === "BUY" ? "belowBar" : "aboveBar",
           color: t.type === "BUY" ? upColor : downColor,
           shape: t.type === "BUY" ? "arrowUp" : "arrowDown",
-          text: `${t.type === "BUY" ? "买" : "卖"} ${Number(t.quantity)}`,
+          text: `${t.type === "BUY" ? "B" : "S"} ${Number(t.quantity)}`,
         }));
       candleSeries.setMarkers(markers);
     }
@@ -170,12 +205,12 @@ export function CandleChart({
       chart.remove();
       chartRef.current = null;
     };
-  }, [prices, indicators, transactions, height, showBoll, showMa, colorScheme]);
+  }, [prices, indicators, transactions, priceLines, height, showBoll, showMa, colorScheme]);
 
   if (prices.length === 0) {
     return (
       <div
-        className="flex items-center justify-center rounded-md border border-dashed border-border-subtle text-secondary"
+        className="flex items-center justify-center rounded-md border border-border-default bg-base text-tertiary"
         style={{ height }}
       >
         暂无行情数据，请先在管理页同步该股票

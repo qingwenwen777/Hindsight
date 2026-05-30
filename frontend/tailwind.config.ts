@@ -1,7 +1,7 @@
 import type { Config } from "tailwindcss";
 
 /**
- * Tailwind 配置 —— 落地设计文档 8.2 节 Design Tokens。
+ * Tailwind 配置 —— 仿 Hindsight / TradingView 深色视觉系统。
  * 所有颜色走 CSS 变量（见 app/globals.css），支持深/浅主题与涨跌色切换。
  */
 const config: Config = {
@@ -18,15 +18,19 @@ const config: Config = {
         base: "var(--bg-base)",
         surface: "var(--bg-surface)",
         elevated: "var(--bg-elevated)",
-        // 边框
+        // 边框三级
         "border-subtle": "var(--border-subtle)",
-        border: "var(--border-subtle)",
+        "border-default": "var(--border-default)",
+        "border-strong": "var(--border-strong)",
+        border: "var(--border-default)",
         // 文字层级
         primary: "var(--text-primary)",
         secondary: "var(--text-secondary)",
+        tertiary: "var(--text-tertiary)",
         muted: "var(--text-muted)",
         // 语义色
         accent: "var(--accent)",
+        "accent-hover": "var(--accent-hover)",
         "accent-foreground": "var(--accent-foreground)",
         up: "var(--up)",
         down: "var(--down)",
@@ -36,34 +40,41 @@ const config: Config = {
         background: "var(--bg-base)",
         foreground: "var(--text-primary)",
         ring: "var(--accent)",
-        input: "var(--border-subtle)",
+        input: "var(--border-default)",
       },
       fontFamily: {
         sans: ["Inter", "PingFang SC", "Microsoft YaHei", "system-ui", "sans-serif"],
         mono: ["JetBrains Mono", "Roboto Mono", "ui-monospace", "monospace"],
       },
       fontSize: {
-        // 字号阶梯（文档 8.2）
-        display: ["28px", { lineHeight: "1.2", fontWeight: "600" }],
-        h1: ["20px", { lineHeight: "1.3", fontWeight: "600" }],
-        h2: ["16px", { lineHeight: "1.4", fontWeight: "600" }],
-        body: ["14px", { lineHeight: "1.5", fontWeight: "400" }],
-        small: ["13px", { lineHeight: "1.5", fontWeight: "400" }],
-        caption: ["12px", { lineHeight: "1.4", fontWeight: "400" }],
+        // 字号阶梯（Hindsight）
+        kpi: ["36px", { lineHeight: "1", fontWeight: "500" }],
+        display: ["24px", { lineHeight: "1.2", fontWeight: "500" }],
+        h1: ["24px", { lineHeight: "1.2", fontWeight: "500" }],
+        h2: ["14px", { lineHeight: "1.25", fontWeight: "500" }],
+        title: ["14px", { lineHeight: "1.25", fontWeight: "500" }],
+        body: ["14px", { lineHeight: "1.55", fontWeight: "400" }],
+        small: ["13px", { lineHeight: "1.45", fontWeight: "400" }],
+        meta: ["13px", { lineHeight: "1.35", fontWeight: "400" }],
+        caption: ["11px", { lineHeight: "1.2", fontWeight: "400" }],
+        badge: ["10px", { lineHeight: "1.2", fontWeight: "500" }],
         "mono-lg": ["18px", { lineHeight: "1.4", fontWeight: "500" }],
         "mono-sm": ["13px", { lineHeight: "1.4", fontWeight: "400" }],
       },
       borderRadius: {
-        sm: "4px",
-        md: "6px",
-        lg: "8px",
+        sm: "3px",
+        badge: "3px",
+        md: "8px",
+        lg: "16px",
+        card: "16px",
+        pill: "999px",
       },
       spacing: {
-        // 8 基准间距
         "1": "4px",
         "2": "8px",
         "3": "12px",
         "4": "16px",
+        "5": "20px",
         "6": "24px",
         "8": "32px",
       },

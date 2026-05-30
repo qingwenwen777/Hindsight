@@ -3,49 +3,60 @@
 @tailwind utilities;
 
 /*
- * Design Tokens —— 设计文档 8.2 节。
- * 深色为默认主题；.light 切换浅色。
- * 涨跌色通过 [data-color-scheme] 在 asia / western 间交换语义映射。
+ * Design Tokens —— 仿 Hindsight / TradingView 深色视觉系统。
+ * 深色默认：纯黑画布 + #2b2b2b 浮层，克制低饱和，涨跌色只用于数字。
+ * 涨跌色通过 [data-color-scheme] 在 asia / western 间交换。
  */
 
 :root,
 .dark {
-  /* 背景层级 */
-  --bg-base: #0b0e11;
-  --bg-surface: #131722;
-  --bg-elevated: #1c2230;
-  /* 边框 */
-  --border-subtle: #2a2e39;
-  /* 文字层级 */
-  --text-primary: #d1d4dc;
-  --text-secondary: #787b86;
-  --text-muted: #4a4e5a;
+  /* 背景三层（纯黑画布，靠边框分层） */
+  --bg-base: #000000;
+  --bg-surface: #000000;
+  --bg-elevated: #2b2b2b;
+  /* 边框三级 */
+  --border-subtle: #111111;
+  --border-default: #2a2a2a;
+  --border-strong: #4a4a4a;
+  /* 文字四层 */
+  --text-primary: #f2f2f2;
+  --text-secondary: #d2d2d2;
+  --text-tertiary: #8f8f8f;
+  --text-muted: #8f8f8f;
   /* 强调色 */
   --accent: #2962ff;
+  --accent-hover: #1e53e5;
   --accent-foreground: #ffffff;
-  /* 告警 / 危险 */
-  --warn: #ff9800;
-  --danger: #f23645;
+  /* 状态色 */
+  --warn: #d9a441;
+  --danger: #f05b5b;
 
-  /* 涨跌原始色（不直接用，经 color-scheme 映射到 --up/--down） */
-  --color-green: #26a69a;
-  --color-red: #ef5350;
+  /* 涨跌原始色（经 color-scheme 映射到 --up/--down） */
+  --color-green: #2aa38e;
+  --color-red: #f05b5b;
+
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
 
 .light {
   --bg-base: #ffffff;
-  --bg-surface: #f8f9fd;
-  --bg-elevated: #ffffff;
-  --border-subtle: #e0e3eb;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f0f3fa;
+  --border-subtle: #f0f3fa;
+  --border-default: #e0e3eb;
+  --border-strong: #c7ccd8;
   --text-primary: #131722;
-  --text-secondary: #787b86;
-  --text-muted: #b2b5be;
+  --text-secondary: #2a2e39;
+  --text-tertiary: #787b86;
+  --text-muted: #787b86;
   --accent: #2962ff;
+  --accent-hover: #1e53e5;
   --accent-foreground: #ffffff;
-  --warn: #ff9800;
-  --danger: #f23645;
-  --color-green: #26a69a;
-  --color-red: #ef5350;
+  --warn: #b7791f;
+  --danger: #d8433e;
+  --color-green: #00897b;
+  --color-red: #d8433e;
+  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 /* 涨跌色语义映射：
@@ -60,16 +71,12 @@
   --up: var(--color-red);
   --down: var(--color-green);
 }
-/* 缺省（未设置 data 属性时）走 western */
 :root {
   --up: var(--color-green);
   --down: var(--color-red);
 }
 
 @layer base {
-  * {
-    border-color: var(--border-subtle);
-  }
   html {
     color-scheme: dark;
   }
@@ -78,12 +85,27 @@
     color: var(--text-primary);
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
-  /* 数字一律等宽对齐 */
+  /* 数字一律等宽对齐 + lining nums */
   .tnum {
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums lining-nums;
+    font-feature-settings: "tnum" 1, "lnum" 1;
     font-family: var(--font-mono, "JetBrains Mono"), ui-monospace, monospace;
+    letter-spacing: 0;
   }
+  /* KPI/分组标签：大写 + 字距 */
+  .label-caps {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+}
+
+/* 卡片浅插入高光（深色下用背景明度差 + 极淡内阴影分层，不用大阴影） */
+.card-shadow {
+  box-shadow: var(--shadow-card);
 }
 
 /* 自定义滚动条（深色克制风格） */
@@ -95,9 +117,9 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--border-subtle);
+  background: var(--border-strong);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
+  background: var(--text-tertiary);
 }

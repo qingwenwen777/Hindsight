@@ -24,9 +24,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <QueryProvider>
             <div className="flex h-screen w-screen overflow-hidden bg-base">
               <Sidebar />
-              <div className="flex flex-1 flex-col overflow-hidden">
+              <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
                 <Topbar />
-                <main className="flex-1 overflow-y-auto p-6">{children}</main>
+                <main className="flex-1 overflow-y-auto">
+                  <div className="mx-auto max-w-[1280px] px-6 py-6">{children}</div>
+                </main>
               </div>
             </div>
           </QueryProvider>

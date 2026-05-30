@@ -4,50 +4,60 @@ import Link from "next/link";
 
 import { PnL } from "@/components/stats/pnl";
 import { Stat } from "@/components/stats/stat";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
 import { useUiStore } from "@/lib/store/ui-store";
-import { formatMoney, formatQuantity, pnlDirection } from "@/lib/format";
+import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 
 /**
- * 仪表盘首页（接真实 API）。
- * 顶部 4 个 Stat 卡片 + Top 持仓列表。
+ * 仪表盘首页（Hindsight / TradingView 风格）。
+ * KPI 卡片 + 净值曲线 + 需要注意 + 持仓表。
  */
 export default function DashboardPage() {
   const baseCurrency = useUiStore((s) => s.baseCurrency);
   const { data: summary, isLoading: summaryLoading } = useSummary();
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
 
-  const topHoldings = (holdings ?? [])
+  const totalWeightBase = (holdings ?? []).reduce(
+    (acc, h) => acc + Number(h.market_value ?? h.cost_basis ?? 0),
+    0,
+  );
+  const sorted = (holdings ?? [])
     .slice()
-    .sort((a, b) => Number(b.market_value ?? b.cost_basis) - Number(a.market_value ?? a.cost_basis))
-    .slice(0, 5);
+    .sort(
+      (a, b) =>
+        Number(b.market_value ?? b.cost_basis) - Number(a.market_value ?? a.cost_basis),
+    );
+
+  // 集中度告警（单股 > 20%）
+  const concentrationAlerts = sorted.filter(
+    (h) => totalWeightBase > 0 && Number(h.market_value ?? h.cost_basis) / totalWeightBase > 0.2,
+  );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4">
+      {/* 页头 */}
+      <div className="mb-4.5 flex items-end justify-between">
         <div>
-          <h1 className="text-h1 text-primary">仪表盘</h1>
-          <p className="text-small text-secondary">记录、分析与复盘你的投资决策。</p>
+          <h1 className="text-display text-secondary">仪表盘</h1>
+          <div className="mt-2 text-meta text-tertiary">个人组合复盘 · 基准币种 {baseCurrency}</div>
         </div>
-        <Link
-          href="/transactions/new"
-          className="rounded-md bg-accent px-4 py-2 text-small font-medium text-accent-foreground hover:bg-accent/90"
-        >
-          录入交易
+        <Link href="/transactions/new">
+          <Button>录入交易</Button>
         </Link>
       </div>
 
-      {/* Stat 卡片 */}
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {/* KPI 网格 */}
+      <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Stat
-          label="总市值"
+          label="Total Assets"
           value={
             summaryLoading
               ? "…"
               : summary?.total_market_value
                 ? formatMoney(summary.total_market_value, baseCurrency)
-                : "—"
+                : formatMoney(summary?.total_cost, baseCurrency)
           }
         />
         <Stat
@@ -74,69 +84,127 @@ export default function DashboardPage() {
           colorValue
           direction={pnlDirection(summary?.total_realized_pnl)}
         />
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* 净值曲线占位（Phase 3） */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>净值 vs 基准</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-64 items-center justify-center rounded-md border border-dashed border-border-subtle text-secondary">
-              曲线将在 Phase 3 接入 lightweight-charts
+      {/* 12 列：净值曲线 + 需要注意 */}
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+        <Card className="p-5 lg:col-span-8">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-title font-medium text-primary">净值 vs 基准</h2>
+            <div className="flex gap-3.5 text-meta text-tertiary">
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-[7px] w-[7px] rounded-full bg-up" />组合
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-[7px] w-[7px] rounded-full bg-accent" />基准
+              </span>
             </div>
-          </CardContent>
+          </div>
+          <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
+            净值曲线将在接入历史估值快照后渲染
+          </div>
         </Card>
 
-        {/* Top 持仓 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Top 持仓</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {holdingsLoading ? (
-              <div className="space-y-2">
-                {[0, 1, 2].map((i) => (
-                  <div key={i} className="h-12 animate-pulse rounded-md bg-elevated" />
-                ))}
-              </div>
-            ) : topHoldings.length === 0 ? (
-              <div className="py-8 text-center text-small text-secondary">
-                还没有持仓，
-                <Link href="/transactions/new" className="text-accent hover:underline">
-                  去录入一笔交易
-                </Link>
+        <Card className="p-5 lg:col-span-4">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-title font-medium text-primary">需要注意</h2>
+            <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium text-secondary">
+              {concentrationAlerts.length} alerts
+            </span>
+          </div>
+          <div className="grid gap-3">
+            {concentrationAlerts.length === 0 ? (
+              <div className="rounded-md border border-border-default border-l-2 border-l-up bg-base p-3.5">
+                <div className="text-body font-medium text-primary">组合健康</div>
+                <div className="mt-1.5 text-meta text-tertiary">暂无超阈值告警。</div>
               </div>
             ) : (
-              <div className="space-y-1">
-                {topHoldings.map((h) => (
-                  <Link
+              concentrationAlerts.map((h) => {
+                const w = (Number(h.market_value ?? h.cost_basis) / totalWeightBase) * 100;
+                return (
+                  <div
                     key={h.stock_id}
-                    href={`/stocks/${h.stock_id}`}
-                    className="flex items-center justify-between rounded-md px-2 py-2 hover:bg-elevated"
+                    className="rounded-md border border-border-default border-l-2 border-l-down bg-base p-3.5"
                   >
-                    <div>
-                      <div className="text-small text-primary">{h.name}</div>
-                      <div className="tnum text-caption text-secondary">
-                        {h.symbol} · {formatQuantity(h.shares)} 股
-                      </div>
+                    <div className="text-body font-medium text-primary">
+                      {h.symbol} 占 <span className="tnum">{w.toFixed(1)}%</span>
                     </div>
-                    <div className="text-right">
-                      <div className="tnum text-small text-primary">
-                        {formatMoney(h.market_value ?? h.cost_basis, h.currency)}
-                      </div>
-                      <div className="text-caption">
-                        <PnL value={h.unrealized_pnl} currency={h.currency} />
-                      </div>
+                    <div className="mt-1.5 text-meta text-tertiary">
+                      超 20% 阈值，建议复查集中度假设。
                     </div>
-                  </Link>
-                ))}
-              </div>
+                  </div>
+                );
+              })
             )}
-          </CardContent>
+          </div>
         </Card>
-      </div>
+      </section>
+
+      {/* 持仓表 */}
+      <Card className="overflow-hidden">
+        <div className="grid min-h-[40px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 bg-elevated px-5 label-caps">
+          <div>Code</div>
+          <div className="text-right">Price</div>
+          <div className="text-right">Cost</div>
+          <div className="text-right">P/L</div>
+          <div className="text-right">Weight</div>
+          <div>Status</div>
+        </div>
+        {holdingsLoading ? (
+          [0, 1, 2].map((i) => (
+            <div key={i} className="border-b border-border-default px-5 py-3">
+              <div className="h-6 animate-pulse rounded bg-elevated" />
+            </div>
+          ))
+        ) : sorted.length === 0 ? (
+          <div className="px-5 py-12 text-center text-tertiary">
+            还没有持仓，
+            <Link href="/transactions/new" className="text-accent hover:underline">
+              去录入一笔交易
+            </Link>
+          </div>
+        ) : (
+          sorted.map((h) => {
+            const w = totalWeightBase > 0
+              ? (Number(h.market_value ?? h.cost_basis) / totalWeightBase) * 100
+              : 0;
+            const over = w > 20;
+            const plPct =
+              Number(h.cost_basis) > 0 && h.unrealized_pnl != null
+                ? (Number(h.unrealized_pnl) / Number(h.cost_basis)) * 100
+                : null;
+            return (
+              <Link
+                key={h.stock_id}
+                href={`/stocks/${h.stock_id}`}
+                className="grid min-h-[44px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 border-b border-border-default px-5 last:border-b-0 hover:bg-elevated"
+              >
+                <div>
+                  <div className="font-medium text-primary">{h.symbol}</div>
+                  <div className="mt-0.5 text-caption text-tertiary">{h.name}</div>
+                </div>
+                <div className="tnum text-right text-primary">{formatMoney(h.last_price ?? h.avg_cost, h.currency)}</div>
+                <div className="tnum text-right text-tertiary">{formatMoney(h.avg_cost, h.currency)}</div>
+                <div className="text-right">
+                  {plPct != null ? <PnL value={plPct} mode="percent" /> : <span className="text-tertiary">—</span>}
+                </div>
+                <div className="tnum text-right text-secondary">{w.toFixed(1)}%</div>
+                <div>
+                  {over ? (
+                    <span className="rounded-badge border border-down/55 bg-elevated px-1.5 py-0.5 text-badge font-medium text-down">
+                      集中度告警
+                    </span>
+                  ) : (
+                    <span className="rounded-badge border border-border-default bg-elevated px-1.5 py-0.5 text-badge font-medium text-secondary">
+                      Hold
+                    </span>
+                  )}
+                </div>
+              </Link>
+            );
+          })
+        )}
+      </Card>
     </div>
   );
 }

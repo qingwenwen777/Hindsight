@@ -1,12 +1,25 @@
 "use client";
 
 import {
-  BarChart3,
   Bot,
+  CandlestickChart,
+  ChevronLeft,
+  ChevronRight,
+  Compass,
+  Gauge,
+  Heart,
   LayoutDashboard,
-  LineChart,
+  type LucideIcon,
+  NotebookPen,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PieChart,
+  Receipt,
+  Scale,
   Settings,
   Star,
+  Target,
+  TrendingUp,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,8 +28,10 @@ import { usePathname } from "next/navigation";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
 
-/** 侧边导航项分组（文档 8.3：概览 / 交易 / 分析 / AI / 设置）。 */
-const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: typeof LayoutDashboard }[] }[] = [
+const NAV_GROUPS: {
+  title: string;
+  items: { href: string; label: string; icon: LucideIcon }[];
+}[] = [
   {
     title: "概览",
     items: [
@@ -28,17 +43,18 @@ const NAV_GROUPS: { title: string; items: { href: string; label: string; icon: t
   {
     title: "交易",
     items: [
-      { href: "/transactions", label: "交易记录", icon: LineChart },
-      { href: "/journals", label: "决策日志", icon: BarChart3 },
+      { href: "/transactions", label: "交易记录", icon: Receipt },
+      { href: "/journals", label: "决策日志", icon: NotebookPen },
     ],
   },
   {
     title: "分析",
     items: [
-      { href: "/analytics/returns", label: "收益分析", icon: BarChart3 },
-      { href: "/analytics/benchmark", label: "基准对比", icon: BarChart3 },
-      { href: "/analytics/exposure", label: "暴露分析", icon: BarChart3 },
-      { href: "/analytics/emotion", label: "情绪审计", icon: BarChart3 },
+      { href: "/analytics/returns", label: "收益分析", icon: TrendingUp },
+      { href: "/analytics/benchmark", label: "基准对比", icon: Scale },
+      { href: "/analytics/exposure", label: "暴露分析", icon: PieChart },
+      { href: "/analytics/emotion", label: "情绪审计", icon: Heart },
+      { href: "/reports", label: "报表中心", icon: CandlestickChart },
     ],
   },
   {
@@ -58,47 +74,56 @@ export function Sidebar() {
 
   return (
     <aside
-      onMouseEnter={() => setCollapsed(false)}
-      onMouseLeave={() => setCollapsed(true)}
       className={cn(
-        "flex h-full flex-col border-r border-border-subtle bg-surface transition-all duration-200",
+        "hidden shrink-0 flex-col border-r border-border-subtle bg-surface card-shadow transition-[width] duration-200 md:flex",
         collapsed ? "w-[56px]" : "w-[220px]",
       )}
     >
-      <div className="flex h-14 items-center gap-2 px-4">
-        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground font-mono text-small font-semibold">
-          T
-        </div>
-        {!collapsed && <span className="text-h2 text-primary">TradeAI</span>}
+      {/* 品牌 — 纯文字，不要蓝色方块 */}
+      <div className="flex h-[60px] items-center justify-between border-b border-border-subtle px-3">
+        {!collapsed && (
+          <span className="pl-2 text-title font-medium tracking-tight text-primary">
+            Hindsight
+          </span>
+        )}
+        {/* 手动折叠按钮 */}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-tertiary hover:bg-elevated hover:text-primary"
+          aria-label={collapsed ? "展开侧栏" : "收起侧栏"}
+        >
+          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-2 py-2">
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
         {NAV_GROUPS.map((group) => (
           <div key={group.title} className="mb-4">
-            {!collapsed && (
-              <div className="px-2 pb-1 text-caption uppercase tracking-wider text-muted">
-                {group.title}
-              </div>
-            )}
-            {group.items.map((item) => {
-              const active = pathname === item.href;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-2 py-2 text-small transition-colors",
-                    active
-                      ? "bg-elevated text-primary"
-                      : "text-secondary hover:bg-elevated hover:text-primary",
-                  )}
-                >
-                  <Icon className="h-4 w-4 shrink-0" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              );
-            })}
+            {!collapsed && <div className="px-3 pb-1.5 label-caps">{group.title}</div>}
+            <div className="grid gap-0.5">
+              {group.items.map((item) => {
+                const active =
+                  item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={collapsed ? item.label : undefined}
+                    className={cn(
+                      "flex h-9 items-center gap-3 rounded-md px-3 text-body font-medium transition-colors",
+                      active
+                        ? "bg-elevated text-primary"
+                        : "text-tertiary hover:bg-elevated hover:text-primary",
+                      collapsed && "justify-center px-0",
+                    )}
+                  >
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    {!collapsed && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+              })}
+            </div>
           </div>
         ))}
       </nav>

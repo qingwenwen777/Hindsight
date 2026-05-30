@@ -32,7 +32,7 @@ export const useUiStore = create<UiState>()(
       theme: "dark",
       colorScheme: "western",
       baseCurrency: "JPY",
-      sidebarCollapsed: true,
+      sidebarCollapsed: false,
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
       setColorScheme: (colorScheme) => set({ colorScheme }),
