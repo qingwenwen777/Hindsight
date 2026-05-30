@@ -109,6 +109,7 @@ from app.api import (  # noqa: E402
     returns,
     stocks,
     transactions,
+    watchlist,
 )
 
 app.include_router(stocks.router, prefix=settings.api_prefix)
@@ -123,4 +124,5 @@ app.include_router(exposure.router, prefix=settings.api_prefix)
 app.include_router(ai.router, prefix=settings.api_prefix)
 app.include_router(biases.router, prefix=settings.api_prefix)
 app.include_router(reports.router, prefix=settings.api_prefix)
+app.include_router(watchlist.router, prefix=settings.api_prefix)
 app.include_router(admin.router, prefix=settings.api_prefix)

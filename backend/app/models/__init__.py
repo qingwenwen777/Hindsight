@@ -12,6 +12,7 @@ from app.models.journal import Journal, Review
 from app.models.stock import Price, Stock
 from app.models.sync_log import SyncLog
 from app.models.transaction import Transaction
+from app.models.watchlist import Watchlist
 
 __all__ = [
     "Stock",
@@ -26,4 +27,5 @@ __all__ = [
     "CashAccount",
     "CashFlow",
     "AiInsight",
+    "Watchlist",
 ]

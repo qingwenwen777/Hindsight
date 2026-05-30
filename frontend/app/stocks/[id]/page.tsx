@@ -1,12 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Star } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { CandleChart } from "@/components/charts/candle-chart";
 import { IndicatorPanel } from "@/components/charts/indicator-panel";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
 import { formatMoney, formatQuantity, pnlDirection } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,7 @@ import {
   useStock,
   useStockTransactions,
 } from "@/lib/hooks/use-stock";
+import { useAddWatch, useRemoveWatch, useWatchlist } from "@/lib/hooks/use-watchlist";
 import type { Holding, Journal } from "@/lib/api/types";
 
 const RANGES = ["1M", "3M", "6M", "1Y", "All"] as const;
@@ -44,6 +47,12 @@ export default function StockDetailPage() {
     queryFn: async () => (await api.get<Journal[]>(`/journals?stock_id=${id}`)).data,
     enabled: Number.isFinite(id),
   });
+
+  // 关注状态
+  const { data: watch } = useWatchlist();
+  const addWatch = useAddWatch();
+  const removeWatch = useRemoveWatch();
+  const isWatched = (watch ?? []).some((w) => w.stock_id === id);
 
   const lastClose = prices && prices.length > 0 ? Number(prices[prices.length - 1].close) : null;
   const prevClose = prices && prices.length > 1 ? Number(prices[prices.length - 2].close) : null;
@@ -96,6 +105,18 @@ export default function StockDetailPage() {
                 {dayChange.toFixed(2)} ({dayChangePct?.toFixed(2)}%)
               </div>
             )}
+            <div className="mt-2 flex justify-start sm:justify-end">
+              <Button
+                size="sm"
+                variant={isWatched ? "secondary" : "outline"}
+                onClick={() =>
+                  isWatched ? removeWatch.mutate(id) : addWatch.mutate({ stock_id: id })
+                }
+              >
+                <Star className={cn("h-3.5 w-3.5", isWatched && "fill-current text-warn")} />
+                {isWatched ? "已关注" : "关注"}
+              </Button>
+            </div>
           </div>
         </header>
 
