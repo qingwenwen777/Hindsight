@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 import { PnL } from "@/components/stats/pnl";
 import { Stat } from "@/components/stats/stat";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { useEquityCurve } from "@/lib/hooks/use-analytics";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -20,6 +30,10 @@ export default function DashboardPage() {
   const { data: summary, isLoading: summaryLoading } = useSummary();
   const { data: holdings, isLoading: holdingsLoading } = useHoldings();
   const { data: reminders } = useReviewReminders();
+  const { data: equity } = useEquityCurve();
+
+  const equityData =
+    equity?.dates.map((d, i) => ({ date: d, value: equity.normalized[i] })) ?? [];
 
   const totalWeightBase = (holdings ?? []).reduce(
     (acc, h) => acc + Number(h.market_value ?? h.cost_basis ?? 0),
@@ -97,14 +111,31 @@ export default function DashboardPage() {
               <span className="inline-flex items-center gap-1.5">
                 <i className="h-[7px] w-[7px] rounded-full bg-up" />组合
               </span>
-              <span className="inline-flex items-center gap-1.5">
-                <i className="h-[7px] w-[7px] rounded-full bg-accent" />基准
-              </span>
             </div>
           </div>
-          <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
-            净值曲线将在接入历史估值快照后渲染
-          </div>
+          {equityData.length < 2 ? (
+            <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed border-border-default text-tertiary">
+              净值曲线将在持仓 + 行情同步后渲染
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={equityData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-default)" />
+                <XAxis dataKey="date" tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} minTickGap={48} />
+                <YAxis tick={{ fill: "var(--text-tertiary)", fontSize: 11 }} domain={["auto", "auto"]} width={48} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 8,
+                    color: "var(--text-primary)",
+                    fontSize: 12,
+                  }}
+                />
+                <Line type="monotone" dataKey="value" stroke="var(--up)" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
         <Card className="p-5 lg:col-span-4">

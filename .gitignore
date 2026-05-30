@@ -58,3 +58,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# ===== 设计参考稿（来自 Hindsight，仅本地参考） =====
+.design-ref/
