@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { formatDate, formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
+import { useUiStore } from "@/lib/store/ui-store";
 import {
   useAccounts,
   useCashFlows,
@@ -43,8 +44,8 @@ export default function CashPage() {
   const { data: accounts } = useAccounts();
   const deleteAccount = useDeleteAccount();
 
-  // 总览折算币种
-  const [summaryCcy, setSummaryCcy] = useState("JPY");
+  // 总览折算币种：复用顶栏的全局基准币种（不再单独切换）
+  const summaryCcy = useUiStore((s) => s.baseCurrency);
   const { data: summary } = useCashSummary(summaryCcy);
 
   // 弹窗状态
@@ -88,11 +89,7 @@ export default function CashPage() {
       )}
 
       {/* 现金总览 */}
-      <CashOverview
-        summary={summary}
-        summaryCcy={summaryCcy}
-        onChangeCcy={setSummaryCcy}
-      />
+      <CashOverview summary={summary} summaryCcy={summaryCcy} />
 
       {/* 账户卡片 */}
       {(accounts ?? []).length === 0 ? (
@@ -201,15 +198,13 @@ export default function CashPage() {
   );
 }
 
-/** 现金总览：总额（可切币种）+ 各币种明细。 */
+/** 现金总览：总额（按顶栏基准币种折算）+ 各币种明细。 */
 function CashOverview({
   summary,
   summaryCcy,
-  onChangeCcy,
 }: {
   summary: ReturnType<typeof useCashSummary>["data"];
   summaryCcy: string;
-  onChangeCcy: (c: string) => void;
 }) {
   const { t } = useT();
   return (
@@ -218,22 +213,9 @@ function CashOverview({
       <Card className="flex flex-col justify-between gap-4 p-5">
         <div className="flex items-center justify-between">
           <span className="label-caps">{t("cash.totalCash")}</span>
-          <div className="flex gap-1 rounded-pill border border-border-default p-0.5">
-            {CURRENCIES.map((c) => (
-              <button
-                key={c}
-                onClick={() => onChangeCcy(c)}
-                className={cn(
-                  "rounded-pill px-2 py-0.5 text-caption font-medium transition-colors",
-                  summaryCcy === c
-                    ? "bg-elevated text-primary"
-                    : "text-tertiary hover:text-primary",
-                )}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
+          <span className="tnum rounded-badge border border-border-default bg-elevated px-2 py-0.5 text-caption font-medium text-secondary">
+            {summaryCcy}
+          </span>
         </div>
         <div>
           <div className="tnum text-kpi text-primary">
