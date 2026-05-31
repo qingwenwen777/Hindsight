@@ -6,6 +6,7 @@ import { Topbar } from "@/components/layout/topbar";
 import { CommandPalette } from "@/components/layout/command-palette";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { UpdaterProvider } from "@/components/providers/updater-provider";
 
 import "./globals.css";
 
@@ -60,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <QueryProvider>
             <CommandPalette />
+            <UpdaterProvider />
             <div className="flex h-screen w-screen overflow-hidden bg-base">
               <Sidebar />
               <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

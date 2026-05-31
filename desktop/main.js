@@ -12,7 +12,7 @@
  * 退出时确保两个子进程都被杀掉，避免残留。
  */
 
-const { app, BrowserWindow, dialog, shell } = require("electron");
+const { app, BrowserWindow, dialog, shell, ipcMain } = require("electron");
 const { autoUpdater } = require("electron-updater");
 const { spawn } = require("node:child_process");
 const http = require("node:http");
@@ -136,43 +136,79 @@ function handleChildCrash(which) {
 }
 
 /**
- * 自动更新：从自有服务器（generic provider）检查更新。
- * 发现新版本 -> 静默后台下载 -> 下载完成提示用户重启安装。
- * 不强制，用户可稍后再说；失败只记日志，不打断使用。
+ * 自动更新（自有服务器 generic provider）。
+ *
+ * 交互改为前端 UI 驱动（不再用系统弹窗）：
+ * 1. 启动后检查更新；发现新版本 -> 通过 IPC 通知前端，前端弹自定义弹窗问是否更新。
+ * 2. 用户点"下载更新" -> 前端调 IPC 触发下载；下载进度通过 IPC 实时回传，前端画进度条。
+ * 3. 下载完成 -> 通知前端；前端弹"重启安装"。
+ * 4. 用户点"暂不" -> 前端在左上角显示更新标识，点击可再次打开弹窗。
  */
+function sendToRenderer(channel, payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send(channel, payload);
+  }
+}
+
 function setupAutoUpdater() {
   if (isDev) return; // 开发期不检查
 
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false; // 改为用户确认后再下载
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.logger = { info: logLine, warn: logLine, error: logLine, debug: () => {} };
 
   autoUpdater.on("update-available", (info) => {
-    logLine(`发现新版本 ${info.version}，后台下载中`);
+    logLine(`发现新版本 ${info.version}`);
+    sendToRenderer("update:available", {
+      version: info.version,
+      notes: typeof info.releaseNotes === "string" ? info.releaseNotes : null,
+      date: info.releaseDate || null,
+    });
   });
   autoUpdater.on("update-not-available", () => {
     logLine("已是最新版本");
+    sendToRenderer("update:none", {});
   });
   autoUpdater.on("error", (err) => {
-    logLine(`更新检查失败：${err == null ? "unknown" : err.message || err}`);
+    const msg = err == null ? "unknown" : err.message || String(err);
+    logLine(`更新检查/下载失败：${msg}`);
+    sendToRenderer("update:error", { message: msg });
   });
-  autoUpdater.on("update-downloaded", async (info) => {
-    logLine(`新版本 ${info.version} 下载完成`);
-    if (!mainWindow) return;
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: "info",
-      buttons: ["立即重启更新", "稍后"],
-      defaultId: 0,
-      cancelId: 1,
-      title: "发现新版本",
-      message: `TradeAI ${info.version} 已下载完成`,
-      detail: "是否立即重启以完成更新？也可以稍后退出时自动安装。",
+  autoUpdater.on("download-progress", (p) => {
+    sendToRenderer("update:progress", {
+      percent: p.percent,
+      transferred: p.transferred,
+      total: p.total,
+      bytesPerSecond: p.bytesPerSecond,
     });
-    if (response === 0) {
-      shuttingDown = true;
-      cleanup();
-      autoUpdater.quitAndInstall();
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    logLine(`新版本 ${info.version} 下载完成`);
+    sendToRenderer("update:downloaded", { version: info.version });
+  });
+
+  // IPC：前端触发的动作
+  ipcMain.handle("update:check", async () => {
+    try {
+      await autoUpdater.checkForUpdates();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: String(e && e.message ? e.message : e) };
     }
+  });
+  ipcMain.handle("update:download", async () => {
+    try {
+      await autoUpdater.downloadUpdate();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, message: String(e && e.message ? e.message : e) };
+    }
+  });
+  ipcMain.handle("update:install", () => {
+    shuttingDown = true;
+    cleanup();
+    autoUpdater.quitAndInstall();
+    return { ok: true };
   });
 
   // 启动后延迟检查，避开启动高峰

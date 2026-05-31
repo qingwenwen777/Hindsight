@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { UpdateBadge } from "@/components/layout/update-badge";
 import { useInsightUnread } from "@/lib/hooks/use-insights";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -99,8 +100,11 @@ export function Sidebar() {
       {/* 品牌 — 衬线感字标，告别居中小字 */}
       <div className="flex h-[60px] items-center justify-between border-b border-border-subtle px-4">
         {!collapsed && (
-          <span className="text-[19px] font-semibold leading-none tracking-[-0.02em] text-primary">
-            {t("brand.name")}
+          <span className="flex items-center gap-2">
+            <span className="text-[19px] font-semibold leading-none tracking-[-0.02em] text-primary">
+              {t("brand.name")}
+            </span>
+            <UpdateBadge />
           </span>
         )}
         {/* 手动折叠按钮 */}

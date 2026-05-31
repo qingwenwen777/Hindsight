@@ -19,6 +19,22 @@ const zh: Dict = {
   // 品牌
   "brand.name": "Hindsight",
 
+  // 更新
+  "update.badge": "有可用更新",
+  "update.title": "发现新版本",
+  "update.availableDesc": "TradeAI {version} 已发布，是否现在下载更新？",
+  "update.notesTitle": "更新内容",
+  "update.download": "下载更新",
+  "update.later": "暂不",
+  "update.downloading": "正在下载更新…",
+  "update.downloadingDesc": "下载完成后可重启安装，期间可继续使用。",
+  "update.downloadedTitle": "更新已就绪",
+  "update.downloadedDesc": "TradeAI {version} 已下载完成，重启后即可使用新版本。",
+  "update.restartNow": "立即重启安装",
+  "update.errorTitle": "更新失败",
+  "update.retry": "重试",
+  "update.close": "关闭",
+
   // 侧栏分组
   "nav.group.overview": "概览",
   "nav.group.trading": "交易",
@@ -177,6 +193,21 @@ const zh: Dict = {
 const ja: Dict = {
   "brand.name": "Hindsight",
 
+  "update.badge": "更新があります",
+  "update.title": "新しいバージョン",
+  "update.availableDesc": "TradeAI {version} が公開されました。今すぐダウンロードしますか？",
+  "update.notesTitle": "更新内容",
+  "update.download": "ダウンロード",
+  "update.later": "後で",
+  "update.downloading": "ダウンロード中…",
+  "update.downloadingDesc": "完了後に再起動でインストールできます。その間も利用可能です。",
+  "update.downloadedTitle": "更新の準備完了",
+  "update.downloadedDesc": "TradeAI {version} のダウンロードが完了しました。再起動で新バージョンになります。",
+  "update.restartNow": "今すぐ再起動",
+  "update.errorTitle": "更新に失敗しました",
+  "update.retry": "再試行",
+  "update.close": "閉じる",
+
   "nav.group.overview": "概要",
   "nav.group.trading": "取引",
   "nav.group.analysis": "分析",
@@ -326,6 +357,21 @@ const ja: Dict = {
 
 const en: Dict = {
   "brand.name": "Hindsight",
+
+  "update.badge": "Update available",
+  "update.title": "New version available",
+  "update.availableDesc": "TradeAI {version} is available. Download the update now?",
+  "update.notesTitle": "What's new",
+  "update.download": "Download update",
+  "update.later": "Not now",
+  "update.downloading": "Downloading update…",
+  "update.downloadingDesc": "You can keep using the app; restart to install once finished.",
+  "update.downloadedTitle": "Update ready",
+  "update.downloadedDesc": "TradeAI {version} has been downloaded. Restart to use the new version.",
+  "update.restartNow": "Restart & install",
+  "update.errorTitle": "Update failed",
+  "update.retry": "Retry",
+  "update.close": "Close",
 
   "nav.group.overview": "Overview",
   "nav.group.trading": "Trading",
