@@ -6,6 +6,7 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -83,29 +84,61 @@ export default function EmotionAuditPage() {
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
-                <XAxis dataKey="name" tick={{ fill: "var(--text-secondary)", fontSize: 12 }} />
-                <YAxis
+              <BarChart
+                data={chartData}
+                margin={{ top: 8, right: 8, bottom: 4, left: -8 }}
+                barCategoryGap="45%"
+              >
+                {/* 仅保留横向网格，去掉竖向网格线，减少视觉噪音 */}
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--border-default)"
+                  vertical={false}
+                />
+                <XAxis
+                  dataKey="name"
                   tick={{ fill: "var(--text-secondary)", fontSize: 12 }}
+                  axisLine={{ stroke: "var(--border-default)" }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "var(--text-tertiary)", fontSize: 11 }}
                   domain={[0, 100]}
+                  ticks={[0, 25, 50, 75, 100]}
                   unit="%"
+                  axisLine={false}
+                  tickLine={false}
+                  width={40}
                 />
                 <Tooltip
-                  formatter={(v: number) => `${v}%`}
+                  cursor={{ fill: "var(--text-primary)", fillOpacity: 0.04 }}
+                  formatter={(v: number) => [`${v}%`, t("emotion.col.winRate")]}
                   contentStyle={{
                     background: "var(--bg-elevated)",
-                    border: "1px solid var(--border-subtle)",
-                    borderRadius: 6,
+                    border: "1px solid var(--border-default)",
+                    borderRadius: 8,
                     color: "var(--text-primary)",
                     fontSize: 12,
                   }}
                 />
-                <Bar dataKey="winRate" radius={[4, 4, 0, 0]}>
+                {/* 50% 掷硬币基准线，给柱子高低一个参照锚点 */}
+                <ReferenceLine
+                  y={50}
+                  stroke="var(--border-strong)"
+                  strokeDasharray="4 4"
+                  label={{
+                    value: "50%",
+                    position: "right",
+                    fill: "var(--text-tertiary)",
+                    fontSize: 10,
+                  }}
+                />
+                <Bar dataKey="winRate" radius={[3, 3, 0, 0]} maxBarSize={64}>
                   {chartData.map((entry, i) => (
                     <Cell
                       key={i}
-                      fill={entry.winRate >= 50 ? "var(--color-green)" : "var(--color-red)"}
+                      fill={entry.winRate >= 50 ? "var(--up)" : "var(--down)"}
+                      fillOpacity={0.85}
                     />
                   ))}
                 </Bar>
