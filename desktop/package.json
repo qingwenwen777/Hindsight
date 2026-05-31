@@ -18,7 +18,7 @@
     "electron-updater": "^6.3.9"
   },
   "build": {
-    "appId": "com.hindsight.desktop",
+    "appId": "com.tradeai.desktop",
     "productName": "Hindsight",
     "directories": {
       "output": "dist",
