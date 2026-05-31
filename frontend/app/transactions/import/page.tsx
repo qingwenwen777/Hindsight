@@ -4,7 +4,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useT } from "@/lib/i18n/use-t";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -98,57 +97,53 @@ export default function ImportPage() {
         </p>
       </div>
 
-      <Card>
-        <CardContent className="flex items-center gap-4 p-4">
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) {
-                setFile(f);
-                doPreview(f);
-              }
-            }}
-          />
-          <Button onClick={() => fileRef.current?.click()} disabled={loading}>
-            {t("import.chooseFile")}
-          </Button>
-          {file && <span className="text-small text-secondary">{file.name}</span>}
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-4 rounded-md border border-border-default bg-elevated/30 p-4">
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".csv"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) {
+              setFile(f);
+              doPreview(f);
+            }
+          }}
+        />
+        <Button onClick={() => fileRef.current?.click()} disabled={loading}>
+          {t("import.chooseFile")}
+        </Button>
+        {file && <span className="text-small text-secondary">{file.name}</span>}
+      </div>
 
       {error && <p className="text-small text-danger">{error}</p>}
       {result && <p className="text-small text-up">{result}</p>}
 
       {preview && (
-        <Card>
-          <CardHeader>
-            <CardTitle>
-              {t("import.previewTitle")} <span className="text-accent">{preview.broker}</span> · {t("import.totalRows", { total: preview.total })}（
-              <span className="text-up">{t("import.valid", { n: preview.valid })}</span> /
-              <span className="text-down"> {t("import.invalid", { n: preview.invalid })}</span>）
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        <section>
+          <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+            {t("import.previewTitle")} <span className="text-accent">{preview.broker}</span> · {t("import.totalRows", { total: preview.total })}（
+            <span className="text-up">{t("import.valid", { n: preview.valid })}</span> /
+            <span className="text-down"> {t("import.invalid", { n: preview.invalid })}</span>）
+          </h2>
+          <div className="pt-4">
             <div className="max-h-96 overflow-auto">
               <table className="w-full text-small">
                 <thead>
-                  <tr className="border-b border-border-subtle text-caption text-secondary">
-                    <th className="px-2 py-2 text-left">{t("import.col.code")}</th>
-                    <th className="px-2 py-2 text-left">{t("import.col.market")}</th>
-                    <th className="px-2 py-2 text-left">{t("import.col.side")}</th>
-                    <th className="px-2 py-2 text-left">{t("import.col.date")}</th>
-                    <th className="px-2 py-2 text-right">{t("import.col.qty")}</th>
-                    <th className="px-2 py-2 text-right">{t("import.col.price")}</th>
-                    <th className="px-2 py-2 text-left">{t("import.col.status")}</th>
+                  <tr className="border-b border-border-default label-caps">
+                    <th className="px-2 py-2 text-left font-normal">{t("import.col.code")}</th>
+                    <th className="px-2 py-2 text-left font-normal">{t("import.col.market")}</th>
+                    <th className="px-2 py-2 text-left font-normal">{t("import.col.side")}</th>
+                    <th className="px-2 py-2 text-left font-normal">{t("import.col.date")}</th>
+                    <th className="px-2 py-2 text-right font-normal">{t("import.col.qty")}</th>
+                    <th className="px-2 py-2 text-right font-normal">{t("import.col.price")}</th>
+                    <th className="px-2 py-2 text-left font-normal">{t("import.col.status")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {preview.rows.map((r, i) => (
-                    <tr key={i} className="border-b border-border-subtle/50">
+                    <tr key={i} className="border-b border-border-subtle">
                       <td className="tnum px-2 py-2 text-primary">{r.symbol}</td>
                       <td className="px-2 py-2 text-secondary">{r.market}</td>
                       <td className="px-2 py-2">
@@ -174,8 +169,8 @@ export default function ImportPage() {
                 {t("import.confirm", { n: preview.valid })}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
     </div>
   );

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ChevronRight, Lock } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
 import { RefetchIndicator } from "@/components/ui/refetch-indicator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,9 +38,9 @@ export default function JournalsPage() {
       </div>
 
       {isLoading ? (
-        <Card className="divide-y divide-border-subtle overflow-hidden">
+        <div className="divide-y divide-border-subtle border-y border-border-default">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3.5">
+            <div key={i} className="flex items-center gap-3 px-1 py-3.5">
               <Skeleton className="h-9 w-0.5 rounded-full" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-3.5 w-40" />
@@ -49,11 +48,11 @@ export default function JournalsPage() {
               </div>
             </div>
           ))}
-        </Card>
+        </div>
       ) : !journals || journals.length === 0 ? (
-        <Card className="p-12 text-center text-tertiary">{t("journals.empty")}</Card>
+        <div className="border-y border-border-default py-12 text-center text-tertiary">{t("journals.empty")}</div>
       ) : (
-        <Card className="divide-y divide-border-subtle overflow-hidden">
+        <div className="divide-y divide-border-subtle border-y border-border-default">
           {journals.map((j, i) => {
             const tone = decisionTone(j.decision_type);
             const emo = emotionLabel(t, j.emotion);
@@ -63,7 +62,7 @@ export default function JournalsPage() {
                 key={j.id}
                 delay={staggerDelay(i)}
                 href={`/journals/${j.id}`}
-                className="group flex items-stretch gap-3 px-4 py-3.5 transition-colors duration-150 hover:bg-elevated"
+                className="group flex items-stretch gap-3 px-1 py-3.5 transition-colors duration-150 hover:bg-elevated/50"
               >
                 {/* 左侧语义色竖条 */}
                 <span className={`w-0.5 shrink-0 rounded-full ${tone.bar}`} />
@@ -99,7 +98,7 @@ export default function JournalsPage() {
               </FadeIn>
             );
           })}
-        </Card>
+        </div>
       )}
     </div>
   );

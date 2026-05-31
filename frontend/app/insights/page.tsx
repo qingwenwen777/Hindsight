@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
 import { RefetchIndicator } from "@/components/ui/refetch-indicator";
@@ -152,10 +151,10 @@ export default function InsightsPage() {
         ))}
       </div>
 
-      <Card className="overflow-hidden">
+      <div className="border-y border-border-default">
         {isLoading ? (
           [0, 1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 border-b border-border-default px-5 py-3.5 last:border-b-0">
+            <div key={i} className="flex items-center gap-3 border-b border-border-subtle px-1 py-3.5 last:border-b-0">
               <Skeleton className="h-2 w-2 rounded-full" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-2/3" />
@@ -182,7 +181,7 @@ export default function InsightsPage() {
             <FadeIn
               key={d.id}
               delay={staggerDelay(i)}
-              className="flex items-center justify-between gap-3 border-b border-border-default px-5 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated"
+              className="flex items-center justify-between gap-3 border-b border-border-subtle px-1 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated/50"
             >
               <Link href={`/insights/${d.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 {!d.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
@@ -219,7 +218,7 @@ export default function InsightsPage() {
             </FadeIn>
           ))
         )}
-      </Card>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-3">
@@ -269,7 +268,7 @@ function JobProgress({
   const success = job.status === "SUCCESS";
 
   return (
-    <Card className="p-4">
+    <div className="rounded-md border border-border-default bg-elevated/40 p-4">
       <div className="flex items-center gap-3">
         {running && <Loader2 className="h-4 w-4 shrink-0 animate-spin text-accent" />}
         {success && <CheckCircle2 className="h-4 w-4 shrink-0 text-up" />}
@@ -321,6 +320,6 @@ function JobProgress({
           )}
         </div>
       </div>
-    </Card>
+    </div>
   );
 }

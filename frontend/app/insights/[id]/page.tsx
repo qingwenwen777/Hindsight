@@ -7,7 +7,6 @@ import { useEffect } from "react";
 
 import { Markdown } from "@/components/insights/markdown";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { useT } from "@/lib/i18n/use-t";
 import {
   downloadInsightDoc,
@@ -44,9 +43,9 @@ export default function InsightDetailPage() {
       {isLoading ? (
         <div className="skeleton h-64 rounded-card" />
       ) : !doc ? (
-        <Card className="p-12 text-center text-secondary">{t("insights.notFound")}</Card>
+        <div className="border-y border-border-default py-12 text-center text-secondary">{t("insights.notFound")}</div>
       ) : (
-        <Card className="p-6">
+        <article className="border-t border-border-default pt-6">
           {doc.degraded && doc.degraded_reason && (
             <div className="mb-4 rounded-md border border-warn/40 bg-warn/10 px-3 py-2 text-meta text-warn">
               {t("insights.degradedNote")} {doc.degraded_reason}
@@ -63,7 +62,7 @@ export default function InsightDetailPage() {
               )}
             </div>
           )}
-        </Card>
+        </article>
       )}
     </div>
   );

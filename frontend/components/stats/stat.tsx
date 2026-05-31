@@ -19,6 +19,8 @@ interface StatProps {
   colorValue?: boolean;
   /** 加载中：渲染骨架占位替代数值 */
   loading?: boolean;
+  /** 扁平模式：去掉卡片描边/背景/圆角，用于"去卡片"的分隔线网格里。 */
+  flat?: boolean;
 }
 
 /**
@@ -36,13 +38,20 @@ export function Stat({
   direction = "flat",
   colorValue = false,
   loading = false,
+  flat = false,
 }: StatProps) {
   const colorClass =
     direction === "up" ? "text-up" : direction === "down" ? "text-down" : "text-tertiary";
   const valueCls = cn("tnum mt-3.5 text-kpi", colorValue ? colorClass : "text-primary");
 
   return (
-    <div className="card-shadow rounded-card border border-border-default bg-surface px-6 py-8">
+    <div
+      className={cn(
+        flat
+          ? "px-4 py-4"
+          : "card-shadow rounded-card border border-border-default bg-surface px-6 py-8",
+      )}
+    >
       <div className="flex items-center justify-between">
         <span className="label-caps">{label}</span>
         {badge && (

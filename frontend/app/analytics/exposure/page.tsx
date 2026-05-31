@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { DonutExposure } from "@/components/charts/donut-exposure";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
@@ -54,18 +53,18 @@ export default function ExposurePage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("exposure.dimExposure", { dim: DIMENSIONS.find((d) => d.key === dim)?.label ?? "" })}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("exposure.dimExposure", { dim: DIMENSIONS.find((d) => d.key === dim)?.label ?? "" })}
+        </h2>
+        <div className="pt-4">
           {isError ? (
             <p className="py-12 text-center text-meta text-down">{t("exposure.noData")}</p>
           ) : (
             <DonutExposure slices={data?.slices ?? []} />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

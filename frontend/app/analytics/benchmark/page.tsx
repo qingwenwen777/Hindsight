@@ -5,7 +5,6 @@ import { useState } from "react";
 
 import { Stat } from "@/components/stats/stat";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
 import { formatPercent, pnlDirection } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
@@ -38,20 +37,18 @@ export default function BenchmarkPage() {
       </div>
 
       {!data?.available ? (
-        <Card>
-          <CardContent className="p-8 text-center text-secondary">
-            {data?.message ?? t("common.loading")}
-          </CardContent>
-        </Card>
+        <div className="border-y border-border-default py-8 text-center text-secondary">
+          {data?.message ?? t("common.loading")}
+        </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            <Stat label={t("benchmark.portfolioReturn")} value={formatPercent((data.portfolio_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.portfolio_return)} />
-            <Stat label={t("benchmark.benchmarkReturn")} value={formatPercent((data.benchmark_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.benchmark_return)} />
-            <Stat label={t("benchmark.alpha")} value={formatPercent((data.alpha ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.alpha)} />
-            <Stat label={t("benchmark.beta")} value={data.beta?.toFixed(2) ?? "—"} />
-            <Stat label={t("benchmark.infoRatio")} value={data.information_ratio?.toFixed(2) ?? "—"} />
-            <Stat label={t("benchmark.trackingError")} value={formatPercent((data.tracking_error ?? 0) * 100)} />
+          <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle border-y border-border-default md:grid-cols-4 md:divide-y-0">
+            <Stat flat label={t("benchmark.portfolioReturn")} value={formatPercent((data.portfolio_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.portfolio_return)} />
+            <Stat flat label={t("benchmark.benchmarkReturn")} value={formatPercent((data.benchmark_return ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.benchmark_return)} />
+            <Stat flat label={t("benchmark.alpha")} value={formatPercent((data.alpha ?? 0) * 100, { sign: true })} colorValue direction={pnlDirection(data.alpha)} />
+            <Stat flat label={t("benchmark.beta")} value={data.beta?.toFixed(2) ?? "—"} />
+            <Stat flat label={t("benchmark.infoRatio")} value={data.information_ratio?.toFixed(2) ?? "—"} />
+            <Stat flat label={t("benchmark.trackingError")} value={formatPercent((data.tracking_error ?? 0) * 100)} />
           </div>
           <p className="text-caption text-muted">
             {t("benchmark.footnote", {

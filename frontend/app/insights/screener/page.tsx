@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/use-t";
@@ -83,11 +82,11 @@ export default function ScreenerPage() {
         <p className="mt-2 text-meta text-tertiary">{t("screener.subtitle")}</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("screener.conditions")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("screener.conditions")}
+        </h2>
+        <div className="space-y-3 pt-4">
           {conditions.map((cond, i) => {
             const isBool = BOOL.has(cond.field);
             const isNum = NUMERIC.has(cond.field);
@@ -177,16 +176,16 @@ export default function ScreenerPage() {
               {t("screener.saveRule")}
             </Button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* 已存规则 */}
       {(rules ?? []).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("screener.savedRules")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
+        <section>
+          <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+            {t("screener.savedRules")}
+          </h2>
+          <div className="space-y-1 pt-3">
             {(rules ?? []).map((r) => (
               <div key={r.id} className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-elevated">
                 <span className="text-body text-primary">{r.name}</span>
@@ -211,14 +210,14 @@ export default function ScreenerPage() {
                 </div>
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
 
       {/* 结果 */}
       {hits !== null && (
-        <Card className="overflow-hidden">
-          <div className="flex items-center justify-between border-b border-border-default px-5 py-3">
+        <section>
+          <div className="flex items-center justify-between border-b border-border-default pb-3">
             <span className="text-title font-medium text-primary">
               {t("screener.results")} · {t("screener.hits", { n: hits.length })}
             </span>
@@ -230,15 +229,15 @@ export default function ScreenerPage() {
             )}
           </div>
           {reviewMsg && (
-            <div className="border-b border-border-default bg-elevated/40 px-5 py-2 text-meta text-up">
+            <div className="border-b border-border-default bg-elevated/40 px-2 py-2 text-meta text-up">
               {reviewMsg} · <Link href="/insights" className="underline">{t("insights.title")}</Link>
             </div>
           )}
           {hits.length === 0 ? (
-            <div className="px-5 py-10 text-center text-tertiary">{t("screener.noHits")}</div>
+            <div className="px-2 py-10 text-center text-tertiary">{t("screener.noHits")}</div>
           ) : (
             hits.map((h) => (
-              <div key={h.stock_id} className="border-b border-border-default px-5 py-3 last:border-b-0">
+              <div key={h.stock_id} className="border-b border-border-subtle px-2 py-3 last:border-b-0">
                 <div className="flex items-center justify-between">
                   <Link href={`/stocks/${h.stock_id}`} className="text-primary hover:text-accent">
                     {h.name} <span className="tnum text-tertiary">{h.symbol} · {h.market}</span>
@@ -259,8 +258,8 @@ export default function ScreenerPage() {
               </div>
             ))
           )}
-          <div className="px-5 py-2.5 text-caption text-muted">{t("screener.disclaimer")}</div>
-        </Card>
+          <div className="px-2 py-2.5 text-caption text-muted">{t("screener.disclaimer")}</div>
+        </section>
       )}
     </div>
   );

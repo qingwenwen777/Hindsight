@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
 import { Input } from "@/components/ui/input";
 import { RefetchIndicator } from "@/components/ui/refetch-indicator";
@@ -143,8 +142,8 @@ export default function WatchlistPage() {
       </div>
 
       {/* 已关注 */}
-      <Card className="overflow-hidden">
-        <div className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 bg-elevated px-5 py-2.5 label-caps">
+      <div>
+        <div className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-y border-border-default px-3 py-2 label-caps">
           <div>{t("watchlist.col.symbol")}</div>
           <div className="text-right">{t("watchlist.col.lastPrice")}</div>
           <div>{t("watchlist.col.tags")}</div>
@@ -154,7 +153,7 @@ export default function WatchlistPage() {
           [0, 1, 2, 3].map((i) => (
             <div
               key={i}
-              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-default px-5 py-3 last:border-b-0"
+              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-subtle px-3 py-3 last:border-b-0"
             >
               <div className="space-y-1.5">
                 <Skeleton className="h-4 w-28" />
@@ -166,13 +165,13 @@ export default function WatchlistPage() {
             </div>
           ))
         ) : !watch || watch.length === 0 ? (
-          <div className="px-5 py-12 text-center text-tertiary">{t("watchlist.empty")}</div>
+          <div className="px-3 py-12 text-center text-tertiary">{t("watchlist.empty")}</div>
         ) : (
           watch.map((w, i) => (
             <FadeIn
               key={w.id}
               delay={staggerDelay(i)}
-              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-default px-5 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated"
+              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-subtle px-3 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated/50"
             >
               <Link href={`/stocks/${w.stock_id}`} className="hover:text-accent">
                 <div className="font-medium text-primary">{w.name}</div>
@@ -200,7 +199,7 @@ export default function WatchlistPage() {
             </FadeIn>
           ))
         )}
-      </Card>
+      </div>
     </div>
   );
 }

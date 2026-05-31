@@ -7,7 +7,6 @@ import { Lock, Plus } from "lucide-react";
 import { AddReviewForm } from "@/components/forms/add-review-form";
 import { EMOTIONS } from "@/components/forms/emotion-picker";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate, formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 import { useT, type TFunc } from "@/lib/i18n/use-t";
 import { useJournal } from "@/lib/hooks/use-portfolio";
@@ -49,7 +48,7 @@ export default function JournalDetailPage() {
     );
   }
   if (!journal) {
-    return <Card className="p-12 text-center text-tertiary">{t("journal.notFound")}</Card>;
+    return <div className="border-y border-border-default py-12 text-center text-tertiary">{t("journal.notFound")}</div>;
   }
 
   return (
@@ -70,11 +69,11 @@ export default function JournalDetailPage() {
       </div>
 
       {/* 决策快照 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("journal.snapshot")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("journal.snapshot")}
+        </h2>
+        <div className="space-y-5 pt-4">
           <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
             <Field label={t("journal.decisionType")} value={journal.decision_type} />
             <Field label={t("journal.thesisCategory")} value={journal.thesis_category} />
@@ -114,21 +113,21 @@ export default function JournalDetailPage() {
               <p className="whitespace-pre-wrap text-body text-primary">{journal.exit_condition}</p>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
       {/* 复盘时间线 */}
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>{t("journal.reviewTimeline")}</CardTitle>
+      <section>
+        <div className="flex flex-row items-center justify-between border-b border-border-default pb-2">
+          <h2 className="text-title font-medium text-primary">{t("journal.reviewTimeline")}</h2>
           {!showForm && (
             <Button size="sm" variant="secondary" onClick={() => setShowForm(true)}>
               <Plus className="h-3.5 w-3.5" />
               {t("review.add")}
             </Button>
           )}
-        </CardHeader>
-        <CardContent className="space-y-4">
+        </div>
+        <div className="space-y-4 pt-4">
           {showForm && <AddReviewForm journalId={id} onDone={() => setShowForm(false)} />}
 
           {!reviews || reviews.length === 0 ? (
@@ -143,8 +142,8 @@ export default function JournalDetailPage() {
                 return (
                   <li key={r.id} className="relative">
                     {/* 时间线圆点 */}
-                    <span className="absolute -left-[23px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-surface bg-border-strong" />
-                    <div className="rounded-md border border-border-subtle bg-base p-3.5">
+                    <span className="absolute -left-[23px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-base bg-border-strong" />
+                    <div className="rounded-md border border-border-subtle bg-surface p-3.5">
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                         <span className="tnum text-body font-medium text-primary">
                           {formatDate(r.review_date)}
@@ -194,8 +193,8 @@ export default function JournalDetailPage() {
               })}
             </ol>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

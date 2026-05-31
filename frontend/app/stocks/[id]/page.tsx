@@ -7,7 +7,6 @@ import { useMemo, useState } from "react";
 
 import { CandleChart } from "@/components/charts/candle-chart";
 import { IndicatorPanel } from "@/components/charts/indicator-panel";
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api/client";
 import { formatMoney, formatQuantity, pnlDirection } from "@/lib/format";
@@ -83,10 +82,9 @@ export default function StockDetailPage() {
   const dir = pnlDirection(dayChange);
 
   return (
-    <div className="space-y-4">
-      <Card className="overflow-hidden">
-        {/* 头部 */}
-        <header className="grid grid-cols-1 items-start gap-4 border-b border-border-subtle p-6 sm:grid-cols-[1fr_auto]">
+    <div>
+      {/* 头部 */}
+      <header className="grid grid-cols-1 items-start gap-4 border-b border-border-default pb-5 sm:grid-cols-[1fr_auto]">
           <div>
             <div className="flex flex-wrap items-baseline gap-2.5">
               <h1 className="text-display text-primary">{stock?.symbol ?? "…"}</h1>
@@ -152,7 +150,7 @@ export default function StockDetailPage() {
         </div>
 
         {/* 主图 */}
-        <div className="p-6">
+        <div className="pt-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-title font-medium text-primary">{t("stock.priceAction")}</h2>
             <div className="flex gap-1.5">
@@ -241,7 +239,6 @@ export default function StockDetailPage() {
             )}
           </div>
         </div>
-      </Card>
     </div>
   );
 }

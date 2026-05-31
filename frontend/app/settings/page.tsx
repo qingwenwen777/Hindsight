@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { LOCALES } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/use-t";
@@ -26,11 +25,11 @@ export default function SettingsPage() {
         <p className="text-small text-secondary">{t("settings.subtitle")}</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.appearance")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("settings.appearance")}
+        </h2>
+        <div className="space-y-4 pt-4">
           <Row label={t("settings.language")}>
             {LOCALES.map((l) => (
               <Button
@@ -66,18 +65,18 @@ export default function SettingsPage() {
               </Button>
             ))}
           </Row>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("settings.aiBackup")}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2 text-small text-secondary">
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("settings.aiBackup")}
+        </h2>
+        <div className="space-y-2 pt-4 text-small text-secondary">
           <p>{t("settings.aiBackupDesc1")}</p>
           <p>{t("settings.aiBackupDesc2")}</p>
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

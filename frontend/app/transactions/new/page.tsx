@@ -8,7 +8,6 @@ import { ConfidenceSlider } from "@/components/forms/confidence-slider";
 import { CooldownButton } from "@/components/forms/cooldown-button";
 import { EmotionPicker } from "@/components/forms/emotion-picker";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
@@ -145,11 +144,11 @@ export default function NewTransactionPage() {
       </div>
 
       {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("newTx.txInfo")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section>
+          <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+            {t("newTx.txInfo")}
+          </h2>
+          <div className="space-y-4 pt-4">
             {/* 股票搜索 */}
             <div className="space-y-1">
               <Label>{t("newTx.stock")}</Label>
@@ -311,16 +310,16 @@ export default function NewTransactionPage() {
                 {cooldownCheck.isPending ? t("newTx.checking") : t("newTx.nextStep")}
               </Button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
 
       {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("newTx.journalTitle")}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
+        <section>
+          <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+            {t("newTx.journalTitle")}
+          </h2>
+          <div className="space-y-4 pt-4">
             {/* 防御告警（复仇交易 / 持有时间） */}
             <ConcentrationAlert warnings={defenseWarnings} />
             {requireAiConfirm && (
@@ -417,8 +416,8 @@ export default function NewTransactionPage() {
             {!thesisValid && (
               <p className="text-caption text-muted">{t("newTx.thesisHint", { min: MIN_THESIS })}</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       )}
     </div>
   );

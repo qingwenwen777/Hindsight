@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api/client";
 import { formatMoney } from "@/lib/format";
@@ -58,9 +57,9 @@ export default function ReportsPage() {
         <p className="text-small text-secondary">{t("reports.subtitle")}</p>
       </div>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>{t("reports.monthly")}</CardTitle>
+      <section>
+        <div className="flex flex-row items-center justify-between border-b border-border-default pb-2">
+          <h2 className="text-title font-medium text-primary">{t("reports.monthly")}</h2>
           <div className="flex items-center gap-2">
             <Input
               type="number"
@@ -80,10 +79,10 @@ export default function ReportsPage() {
               {t("reports.query")}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent>
+        </div>
+        <div className="pt-4">
           {report ? (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-2 divide-x divide-y divide-border-subtle border-y border-border-default md:grid-cols-3 md:divide-y-0">
               <Stat label={t("reports.buyCount")} value={String(report.buy_count)} />
               <Stat label={t("reports.sellCount")} value={String(report.sell_count)} />
               <Stat label={t("reports.symbolsTraded")} value={String(report.symbols_traded.length)} />
@@ -94,30 +93,28 @@ export default function ReportsPage() {
           ) : (
             <div className="skeleton h-24 rounded-md" />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("reports.failureLib")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section>
+        <h2 className="text-title font-medium text-primary">{t("reports.failureLib")}</h2>
+        <div className="pt-3">
           {!failures || failures.length === 0 ? (
-            <p className="py-6 text-center text-small text-secondary">{t("reports.noFailures")}</p>
+            <p className="border-y border-border-default py-6 text-center text-small text-secondary">{t("reports.noFailures")}</p>
           ) : (
             <table className="w-full text-small">
               <thead>
-                <tr className="border-b border-border-subtle text-caption text-secondary">
-                  <th className="px-2 py-2 text-left">{t("reports.col.symbol")}</th>
-                  <th className="px-2 py-2 text-left">{t("reports.col.date")}</th>
-                  <th className="px-2 py-2 text-right">{t("reports.col.return30d")}</th>
-                  <th className="px-2 py-2 text-left">{t("reports.col.emotion")}</th>
-                  <th className="px-2 py-2 text-left">{t("reports.col.thesis")}</th>
+                <tr className="border-y border-border-default label-caps">
+                  <th className="px-2 py-2 text-left font-normal">{t("reports.col.symbol")}</th>
+                  <th className="px-2 py-2 text-left font-normal">{t("reports.col.date")}</th>
+                  <th className="px-2 py-2 text-right font-normal">{t("reports.col.return30d")}</th>
+                  <th className="px-2 py-2 text-left font-normal">{t("reports.col.emotion")}</th>
+                  <th className="px-2 py-2 text-left font-normal">{t("reports.col.thesis")}</th>
                 </tr>
               </thead>
               <tbody>
                 {failures.map((c) => (
-                  <tr key={c.transaction_id} className="border-b border-border-subtle/50">
+                  <tr key={c.transaction_id} className="border-b border-border-subtle">
                     <td className="px-2 py-2 text-primary">
                       {c.name} <span className="tnum text-secondary">{c.symbol}</span>
                     </td>
@@ -132,17 +129,17 @@ export default function ReportsPage() {
               </tbody>
             </table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-border-subtle bg-base p-3">
-      <div className="text-caption text-secondary">{label}</div>
-      <div className="tnum mt-1 text-mono-lg text-primary">{value}</div>
+    <div className="px-4 py-4">
+      <div className="label-caps">{label}</div>
+      <div className="tnum mt-2 text-mono-lg text-primary">{value}</div>
     </div>
   );
 }

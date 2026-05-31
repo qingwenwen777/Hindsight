@@ -14,7 +14,6 @@ import {
 } from "recharts";
 
 import { EMOTIONS } from "@/components/forms/emotion-picker";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
 import { useT, type TFunc } from "@/lib/i18n/use-t";
 
@@ -71,11 +70,11 @@ export default function EmotionAuditPage() {
         </div>
       )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("emotion.winRateChart")}</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("emotion.winRateChart")}
+        </h2>
+        <div className="pt-4">
           {isLoading ? (
             <div className="skeleton h-64 rounded-md" />
           ) : chartData.length === 0 ? (
@@ -145,42 +144,38 @@ export default function EmotionAuditPage() {
               </BarChart>
             </ResponsiveContainer>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("emotion.detail")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <table className="w-full text-small">
-            <thead>
-              <tr className="border-b border-border-subtle text-caption text-secondary">
-                <th className="px-2 py-2 text-left">{t("emotion.col.emotion")}</th>
-                <th className="px-2 py-2 text-right">{t("emotion.col.samples")}</th>
-                <th className="px-2 py-2 text-right">{t("emotion.col.winRate")}</th>
-                <th className="px-2 py-2 text-right">{t("emotion.col.avgReturn")}</th>
-                <th className="px-2 py-2 text-right">{t("emotion.col.plRatio")}</th>
+      <section>
+        <h2 className="text-title font-medium text-primary">{t("emotion.detail")}</h2>
+        <table className="mt-3 w-full text-small">
+          <thead>
+            <tr className="border-y border-border-default label-caps">
+              <th className="px-2 py-2 text-left font-normal">{t("emotion.col.emotion")}</th>
+              <th className="px-2 py-2 text-right font-normal">{t("emotion.col.samples")}</th>
+              <th className="px-2 py-2 text-right font-normal">{t("emotion.col.winRate")}</th>
+              <th className="px-2 py-2 text-right font-normal">{t("emotion.col.avgReturn")}</th>
+              <th className="px-2 py-2 text-right font-normal">{t("emotion.col.plRatio")}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(data?.by_emotion ?? []).map((r) => (
+              <tr key={r.emotion} className="border-b border-border-subtle">
+                <td className="px-2 py-2 text-primary">{emotionLabel(t, r.emotion)}</td>
+                <td className="tnum px-2 py-2 text-right text-secondary">{r.samples}</td>
+                <td className="tnum px-2 py-2 text-right text-primary">{r.win_rate_pct}%</td>
+                <td className="tnum px-2 py-2 text-right text-secondary">
+                  {r.avg_return_pct ? `${Number(r.avg_return_pct).toFixed(2)}%` : "—"}
+                </td>
+                <td className="tnum px-2 py-2 text-right text-secondary">
+                  {r.profit_loss_ratio != null ? r.profit_loss_ratio.toFixed(2) : "—"}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {(data?.by_emotion ?? []).map((r) => (
-                <tr key={r.emotion} className="border-b border-border-subtle/50">
-                  <td className="px-2 py-2 text-primary">{emotionLabel(t, r.emotion)}</td>
-                  <td className="tnum px-2 py-2 text-right text-secondary">{r.samples}</td>
-                  <td className="tnum px-2 py-2 text-right text-primary">{r.win_rate_pct}%</td>
-                  <td className="tnum px-2 py-2 text-right text-secondary">
-                    {r.avg_return_pct ? `${Number(r.avg_return_pct).toFixed(2)}%` : "—"}
-                  </td>
-                  <td className="tnum px-2 py-2 text-right text-secondary">
-                    {r.profit_loss_ratio != null ? r.profit_loss_ratio.toFixed(2) : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </CardContent>
-      </Card>
+            ))}
+          </tbody>
+        </table>
+      </section>
     </div>
   );
 }
