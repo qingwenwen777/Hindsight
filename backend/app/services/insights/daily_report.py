@@ -13,7 +13,7 @@ from app.models.insight import InsightDocument, ReportConfig
 from app.services.ai import client as ai_client
 from app.services.ai import prompts
 from app.services.ai.models import model_for
-from app.services.insights.context import build_report_context, render_context_md
+from app.services.insights.context import build_report_context, render_context_for_ai, render_context_md
 
 log = get_logger(__name__)
 
@@ -92,10 +92,13 @@ def build_daily_report(
     config: ReportConfig | None = None,
     on_date: date | None = None,
     progress: ProgressReporter | None = None,
-) -> InsightDocument:
+    skip_if_empty: bool = False,
+) -> InsightDocument | None:
     """生成某市场日报，返回文档。失败/不可用走降级。
 
     progress：可选进度回调，用于向任务状态上报阶段/进度。
+    skip_if_empty：True 时若当日无实质事件（异动/触价/待办）则不生成文档、返回 None
+                  （事件驱动：定时任务用，避免在没内容的交易日硬产出空日报）。
     """
     report = progress or _noop_reporter
     market = market.upper()
@@ -108,7 +111,12 @@ def build_daily_report(
     data_md = render_context_md(ctx)
     title = _title(market, on_date)
 
-    # 无重点事项 → 简短文档（仍记录）
+    # C：事件驱动 —— 无实质事件时，定时任务跳过（不写空文档）
+    if not ctx.has_any and skip_if_empty:
+        log.info("daily_report.skipped_empty", market=market, on_date=on_date.isoformat())
+        return None
+
+    # 无重点事项 → 简短文档（仍记录；手动生成时走这里）
     if not ctx.has_any:
         report("SAVING", 90, "今日无重点事项，写入数据汇总")
         body = f"# {title}\n\n> 今日无重点事项（无超阈值异动、无触价、无待办）。\n\n{data_md}{DISCLAIMER}"
@@ -138,7 +146,7 @@ def build_daily_report(
     )
     model = rp.model if rp else model_for("DAILY_REPORT")
     user_prompt = prompts.render_daily_report(
-        data_md,
+        render_context_for_ai(ctx),
         market=_MARKET_LABEL.get(market, market),
         focus=config.focus_text or "",
         constraints="；".join(config.constraints or []),

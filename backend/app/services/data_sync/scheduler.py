@@ -64,14 +64,17 @@ def _run_market_sync(market: str) -> None:
 
 
 def _run_daily_report(market: str) -> None:
-    """调度任务：生成某市场 AI 日报。"""
+    """调度任务：生成某市场 AI 日报（事件驱动：无实质事件则跳过）。"""
     log.info("scheduler.report_start", market=market)
     try:
         with Session(engine) as session:
             from app.services.insights.daily_report import build_daily_report
 
-            doc = build_daily_report(session, market)
-            log.info("scheduler.report_done", market=market, doc_id=doc.id, degraded=doc.degraded)
+            doc = build_daily_report(session, market, skip_if_empty=True)
+            if doc is None:
+                log.info("scheduler.report_skipped_empty", market=market)
+            else:
+                log.info("scheduler.report_done", market=market, doc_id=doc.id, degraded=doc.degraded)
     except Exception as e:  # noqa: BLE001
         log.warning("scheduler.report_failed", market=market, error=str(e))
 
