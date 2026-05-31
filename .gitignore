@@ -46,6 +46,11 @@ data/backups/*
 data/exports/*
 data/cache/*
 !data/backups/.gitkeep
+# 测试/迁移临时库
+backend/data_migtest.db*
+backend/*.db
+backend/*.db-shm
+backend/*.db-wal
 !data/exports/.gitkeep
 !data/cache/.gitkeep
 

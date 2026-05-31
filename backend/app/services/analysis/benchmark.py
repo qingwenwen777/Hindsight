@@ -10,10 +10,10 @@ from dataclasses import dataclass
 
 import numpy as np
 
-# 每市场默认基准（symbol, market）
+# 每市场默认基准（symbol, market）—— 与 data_sync.industry_map.BENCHMARKS 对齐
 DEFAULT_BENCHMARKS: dict[str, dict] = {
     "CN": {"symbol": "000300", "name": "沪深300"},
-    "US": {"symbol": "^GSPC", "name": "S&P 500"},
+    "US": {"symbol": "^GSPC", "name": "标普500"},
     "HK": {"symbol": "^HSI", "name": "恒生指数"},
     "JP": {"symbol": "^N225", "name": "日经225"},
 }

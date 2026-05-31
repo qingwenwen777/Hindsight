@@ -23,16 +23,17 @@ from app.models.transaction import Transaction
 
 ZERO = Decimal("0")
 
-# 进程内持仓缓存（stock_id -> Holding）。交易写入时失效。
-_holdings_cache: dict[int, "Holding"] = {}
 
+def invalidate_holdings_cache(stock_id: int | None = None) -> None:  # noqa: ARG001
+    """空操作（保留以兼容调用方）。
 
-def invalidate_holdings_cache(stock_id: int | None = None) -> None:
-    """失效持仓缓存。stock_id 为空则清空全部。"""
-    if stock_id is None:
-        _holdings_cache.clear()
-    else:
-        _holdings_cache.pop(stock_id, None)
+    历史实现使用进程内字典缓存持仓。该缓存存在两类正确性问题：
+    1. 多 worker / 多进程下各进程缓存独立，一个进程写入后其它进程仍读旧值（脏读）；
+    2. 命中缓存直接返回共享可变 Holding（含可变 lots），调用方一旦改动会污染缓存。
+    且失效时机（commit 前调用）也无法保证一致。为彻底规避这些问题，
+    现已移除进程内缓存，compute_holding 每次都基于最新事务重新计算。
+    """
+    return None
 
 
 @dataclass
@@ -61,6 +62,10 @@ class Holding:
     total_sell_fees: Decimal = ZERO
     # FIFO 剩余批次 [[剩余股数, 单股成本], ...]
     lots: list[list[Decimal]] = field(default_factory=list)
+    # 超卖（卖出股数超过持仓）累计：用于数据告警，不应静默
+    oversold_shares: Decimal = ZERO
+    # 被跳过的无效公司行动（ratio 为空/0）计数：用于数据告警
+    invalid_actions: int = 0
 
     @property
     def avg_cost(self) -> Decimal:
@@ -137,29 +142,37 @@ def _load_events(session: Session, stock_id: int) -> list[_Event]:
     return events
 
 
-def _consume_fifo(lots: list[list[Decimal]], qty: Decimal) -> Decimal:
-    """从 FIFO 队首消耗 qty 股，返回被消耗部分的总成本。"""
+def _consume_fifo(lots: list[list[Decimal]], qty: Decimal) -> tuple[Decimal, Decimal]:
+    """从 FIFO 队首消耗 qty 股。
+
+    返回 (实际消耗股数, 被消耗部分的总成本)。
+    当 lots 不足以覆盖 qty（超卖）时，实际消耗股数 < qty，调用方据此识别超卖。
+    """
     consumed_cost = ZERO
+    consumed_qty = ZERO
     remaining = qty
     while remaining > ZERO and lots:
         lot = lots[0]
         lot_qty, lot_cost_per = lot[0], lot[1]
         if lot_qty <= remaining:
             consumed_cost += lot_qty * lot_cost_per
+            consumed_qty += lot_qty
             remaining -= lot_qty
             lots.pop(0)
         else:
             consumed_cost += remaining * lot_cost_per
+            consumed_qty += remaining
             lot[0] = lot_qty - remaining
             remaining = ZERO
-    return consumed_cost
+    return consumed_qty, consumed_cost
 
 
-def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) -> Holding:
-    """计算单只股票的持仓与 FIFO 已实现盈亏。"""
-    if use_cache and stock_id in _holdings_cache:
-        return _holdings_cache[stock_id]
+def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) -> Holding:  # noqa: ARG001
+    """计算单只股票的持仓与 FIFO 已实现盈亏。
 
+    use_cache 参数已废弃（无进程内缓存），保留签名以兼容调用方。
+    每次都基于当前事务最新数据重新计算，多 worker 下不会脏读。
+    """
     events = _load_events(session, stock_id)
     holding = Holding(stock_id=stock_id)
     lots = holding.lots
@@ -175,23 +188,37 @@ def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) 
             holding.total_buy_fees += e.fees
         elif e.kind == "SELL":
             sell_qty = e.quantity
-            # 卖出收入（净额，扣卖出费用）
-            proceeds = e.quantity * e.price - e.fees
-            consumed_cost = _consume_fifo(lots, sell_qty)
-            holding.shares -= sell_qty
-            holding.cost_basis -= consumed_cost
-            holding.realized_pnl += proceeds - consumed_cost
+            consumed_qty, consumed_cost = _consume_fifo(lots, sell_qty)
+            # 超卖保护：卖出股数超过可用持仓时，只对实际持有的部分确认盈亏，
+            # 多卖部分记入 oversold_shares 供上层告警，绝不按零成本虚增盈亏，
+            # 也不让 shares 变负后被静默隐藏。
+            if consumed_qty < sell_qty:
+                holding.oversold_shares += sell_qty - consumed_qty
+                sell_qty = consumed_qty
+            if sell_qty > ZERO:
+                # 卖出收入按实际卖出股数计净额（费用按整笔计入，抵减收入）
+                proceeds = sell_qty * e.price - e.fees
+                holding.shares -= sell_qty
+                holding.cost_basis -= consumed_cost
+                holding.realized_pnl += proceeds - consumed_cost
             holding.total_sell_fees += e.fees
         elif e.kind in ("SPLIT", "BONUS"):
-            if e.ratio_den and e.ratio_den != ZERO and e.ratio_num:
+            # ratio 必须是有效正比例；分母/分子为空或 0 视为脏数据，
+            # 跳过该公司行动但记录告警，避免静默吞掉拆股导致持仓口径错误。
+            if (
+                e.ratio_num
+                and e.ratio_den
+                and e.ratio_num > ZERO
+                and e.ratio_den > ZERO
+            ):
                 ratio = e.ratio_num / e.ratio_den
                 holding.shares *= ratio
                 for lot in lots:
                     lot[0] *= ratio  # 股数乘
                     lot[1] /= ratio  # 单股成本除（稀释）
                 # cost_basis 不变（乘除抵消），保持总成本
-    if use_cache:
-        _holdings_cache[stock_id] = holding
+            else:
+                holding.invalid_actions += 1
     return holding
 
 

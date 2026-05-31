@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from app.core.response import ok
 from app.database import get_session
+from app.logging_config import get_logger
 from app.models.stock import Price, Stock
 from app.services.analysis import pnl as pnl_service
 from app.services.analysis.benchmark import (
@@ -18,6 +19,7 @@ from app.services.analysis.benchmark import (
 )
 
 router = APIRouter(prefix="/portfolio", tags=["benchmark"])
+log = get_logger(__name__)
 
 
 def _price_map(session: Session, stock_id: int, start: date) -> dict[date, float]:
@@ -29,21 +31,34 @@ def _price_map(session: Session, stock_id: int, start: date) -> dict[date, float
     return {d: float(c) for d, c in rows}
 
 
-def _portfolio_daily_values(session: Session, start: date) -> dict[date, float]:
+def _portfolio_daily_values(
+    session: Session, start: date, target_currency: str | None = None
+) -> dict[date, float]:
     """用当前持仓股数 × 历史价构造组合每日估值序列（近似）。
 
     说明：缺少历史持仓快照时的近似口径，假设持仓结构不变，
     用于估计 β / 跟踪误差等相对指标。
+    target_currency 不为空时，把各持仓按当前汇率换算到该币种（每只一个常数系数），
+    保证多币种组合的每日合计与日收益率口径一致（否则把不同币种数值直接相加会失真）。
     """
+    from app.core.currency import FxRateUnavailable, get_fx_quote
+
+    target = target_currency.upper() if target_currency else None
     holdings = pnl_service.compute_all_holdings(session)
     # 收集每只股票的价格表
     per_stock: list[tuple[float, dict[date, float]]] = []
     all_dates: set[date] = set()
     for ph in holdings:
         shares = float(ph.holding.shares)
+        fx = 1.0
+        if target and ph.stock.currency and ph.stock.currency.upper() != target:
+            try:
+                fx = float(get_fx_quote(session, ph.stock.currency, target, date.today()).rate)
+            except FxRateUnavailable:
+                continue  # 缺汇率：跳过该持仓，避免未换算外币污染序列
         pmap = _price_map(session, ph.stock.id, start)  # type: ignore[arg-type]
         if pmap:
-            per_stock.append((shares, pmap))
+            per_stock.append((shares * fx, pmap))
             all_dates.update(pmap.keys())
     if not per_stock:
         return {}
@@ -51,9 +66,9 @@ def _portfolio_daily_values(session: Session, start: date) -> dict[date, float]:
     values: dict[date, float] = {}
     for d in sorted(all_dates):
         total = 0.0
-        for shares, pmap in per_stock:
+        for factor, pmap in per_stock:
             if d in pmap:
-                total += shares * pmap[d]
+                total += factor * pmap[d]
         values[d] = total
     return values
 
@@ -81,6 +96,28 @@ def benchmark_comparison(
             select(Stock).where(Stock.symbol == bench_default["symbol"])
         ).first()
 
+    # 基准不存在或无行情 → 尝试自动登记并同步（联网兜底）
+    def _has_bench_prices(b: Stock | None) -> bool:
+        if not b:
+            return False
+        return (
+            session.exec(select(Price.date).where(Price.stock_id == b.id).limit(1)).first()
+            is not None
+        )
+
+    if not benchmark_stock_id and not _has_bench_prices(bench):
+        try:
+            from app.services.data_sync.provision import provision_benchmarks
+
+            provision_benchmarks(session, days=max(days + 30, 400), markets=[benchmark_market.upper()])
+        except Exception as e:  # noqa: BLE001, S110
+            log.warning("benchmark.provision_failed", market=benchmark_market, error=str(e))
+        # 重新解析
+        if bench_default:
+            bench = session.exec(
+                select(Stock).where(Stock.symbol == bench_default["symbol"])
+            ).first()
+
     if not bench:
         return ok(
             {
@@ -91,7 +128,7 @@ def benchmark_comparison(
         )
 
     bench_prices_map = _price_map(session, bench.id, start)  # type: ignore[arg-type]
-    port_values_map = _portfolio_daily_values(session, start)
+    port_values_map = _portfolio_daily_values(session, start, bench.currency)
 
     # 对齐共同日期
     common = sorted(set(bench_prices_map) & set(port_values_map))

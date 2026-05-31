@@ -15,6 +15,30 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 log = get_logger(__name__)
 
 
+@router.post("/provision/industries", summary="回填股票行业标签")
+def provision_industries(
+    overwrite: bool = Query(False, description="是否覆盖已有行业"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """为已登记股票回填中文行业标签（修复暴露分析"未分类"）。"""
+    from app.services.data_sync.provision import backfill_industries
+
+    return ok(backfill_industries(session, overwrite=overwrite))
+
+
+@router.post("/provision/benchmarks", summary="登记并同步基准指数")
+def provision_benchmarks_endpoint(
+    market: str | None = Query(None, description="US/CN/HK/JP；空为全部"),
+    days: int = Query(400, description="同步最近 N 天"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """登记各市场默认基准指数并同步行情（修复基准对比"无数据"）。"""
+    from app.services.data_sync.provision import provision_benchmarks
+
+    markets = [market.upper()] if market else None
+    return ok(provision_benchmarks(session, days=days, markets=markets))
+
+
 @router.post("/sync/prices")
 def sync_prices(
     market: str = Query(..., description="市场代码：CN / US / HK / JP"),

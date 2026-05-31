@@ -77,13 +77,19 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):  # noqa: ANN201
-    """把请求校验错误（422）包装成统一响应壳。"""
+    """把请求校验错误（422）包装成统一响应壳。
+
+    用 jsonable_encoder 序列化 errors：自定义校验器抛出的 ValueError 会被 Pydantic
+    放进 ctx，直接塞进 JSONResponse 不可序列化（会变 500），需先编码为 JSON 安全结构。
+    """
+    from fastapi.encoders import jsonable_encoder
+
     return JSONResponse(
         status_code=422,
         content={
             "code": 422,
             "message": "请求参数校验失败",
-            "data": {"errors": exc.errors()},
+            "data": {"errors": jsonable_encoder(exc.errors())},
             "meta": None,
         },
     )

@@ -16,6 +16,9 @@ from app.services.analysis import cash as cash_service
 
 router = APIRouter(prefix="/portfolio", tags=["cash"])
 
+# 允许的现金币种集合
+_ALLOWED_CURRENCIES = {"JPY", "USD", "CNY", "HKD"}
+
 
 class AccountCreate(BaseModel):
     name: str
@@ -121,13 +124,18 @@ def create_cash_flow(payload: CashFlowCreate, session: Session = Depends(get_ses
     acc = session.get(CashAccount, payload.account_id)
     if not acc:
         raise HTTPException(status_code=404, detail="账户不存在")
+    ccy = (payload.currency or acc.currency).upper()
+    if ccy not in _ALLOWED_CURRENCIES:
+        raise HTTPException(
+            status_code=422, detail=f"currency 必须是 {sorted(_ALLOWED_CURRENCIES)} 之一"
+        )
     cf = cash_service.add_cash_flow(
         session,
         payload.account_id,
         payload.flow_date or date.today(),
         payload.type.upper(),
         D(payload.amount),
-        (payload.currency or acc.currency).upper(),
+        ccy,
         notes=payload.notes,
     )
     return ok(

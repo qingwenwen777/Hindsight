@@ -8,22 +8,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api/client";
 import { useT } from "@/lib/i18n/use-t";
+import { useUiStore } from "@/lib/store/ui-store";
 
 export default function ExposurePage() {
   const { t } = useT();
+  const baseCurrency = useUiStore((s) => s.baseCurrency);
   const [dim, setDim] = useState("industry");
   const DIMENSIONS = [
     { key: "industry", label: t("exposure.industry") },
     { key: "market", label: t("exposure.market") },
     { key: "currency", label: t("exposure.currency") },
   ];
-  const { data } = useQuery({
-    queryKey: ["exposure", dim],
-    queryFn: async () => (await api.get<any>(`/portfolio/exposure?dimension=${dim}`)).data,
+  const { data, isError } = useQuery({
+    queryKey: ["exposure", dim, baseCurrency],
+    queryFn: async () =>
+      (await api.get<any>(`/portfolio/exposure?dimension=${dim}&currency=${baseCurrency}`)).data,
   });
   const { data: conc } = useQuery({
-    queryKey: ["concentration"],
-    queryFn: async () => (await api.get<any>("/portfolio/concentration")).data,
+    queryKey: ["concentration", baseCurrency],
+    queryFn: async () =>
+      (await api.get<any>(`/portfolio/concentration?currency=${baseCurrency}`)).data,
   });
 
   return (
@@ -55,7 +59,11 @@ export default function ExposurePage() {
           <CardTitle>{t("exposure.dimExposure", { dim: DIMENSIONS.find((d) => d.key === dim)?.label ?? "" })}</CardTitle>
         </CardHeader>
         <CardContent>
-          <DonutExposure slices={data?.slices ?? []} />
+          {isError ? (
+            <p className="py-12 text-center text-meta text-down">{t("exposure.noData")}</p>
+          ) : (
+            <DonutExposure slices={data?.slices ?? []} />
+          )}
         </CardContent>
       </Card>
     </div>

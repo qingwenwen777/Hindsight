@@ -61,8 +61,21 @@ def fetch_yf_daily(
     retry_delay: float = 1.5,
 ) -> list[PriceBar]:
     """拉取美/港/日股日线。"""
-    yf = _import_yf()
     ticker = to_yf_symbol(symbol, market)
+    return fetch_yf_daily_by_ticker(
+        ticker, start=start, end=end, retries=retries, retry_delay=retry_delay
+    )
+
+
+def fetch_yf_daily_by_ticker(
+    ticker: str,
+    start: date | None = None,
+    end: date | None = None,
+    retries: int = 3,
+    retry_delay: float = 1.5,
+) -> list[PriceBar]:
+    """按 yfinance 原始 ticker 拉取日线（用于指数等不走市场后缀规则的标的）。"""
+    yf = _import_yf()
     start_str = start.isoformat() if start else "1990-01-01"
     end_str = end.isoformat() if end else date.today().isoformat()
 

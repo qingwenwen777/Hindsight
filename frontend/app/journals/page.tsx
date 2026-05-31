@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRight, Lock } from "lucide-react";
 
-import { LockBadge } from "@/components/forms/lock-badge";
 import { Card } from "@/components/ui/card";
 import { EMOTIONS } from "@/components/forms/emotion-picker";
 import { formatDate } from "@/lib/format";
@@ -11,7 +11,16 @@ import { useJournals } from "@/lib/hooks/use-portfolio";
 
 function emotionLabel(t: TFunc, value?: string | null) {
   const e = EMOTIONS.find((x) => x.value === value);
-  return e ? `${e.emoji} ${t(`form.emotion.${e.value}`)}` : value || "—";
+  return e ? `${e.emoji} ${t(`form.emotion.${e.value}`)}` : null;
+}
+
+/** 决策类型 -> 语义色（左侧竖条 + 文字）。 */
+function decisionTone(type: string): { bar: string; text: string } {
+  const t = type.toUpperCase();
+  if (t === "BUY") return { bar: "bg-up", text: "text-up" };
+  if (t === "SELL") return { bar: "bg-down", text: "text-down" };
+  if (t === "HOLD") return { bar: "bg-accent", text: "text-accent" };
+  return { bar: "bg-border-strong", text: "text-secondary" };
 }
 
 export default function JournalsPage() {
@@ -19,45 +28,66 @@ export default function JournalsPage() {
   const { data: journals, isLoading } = useJournals();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h1 className="text-h1 text-primary">{t("journals.title")}</h1>
-        <p className="text-small text-secondary">{t("journals.subtitle")}</p>
+        <h1 className="text-display text-secondary">{t("journals.title")}</h1>
+        <p className="mt-2 text-meta text-tertiary">{t("journals.subtitle")}</p>
       </div>
 
       {isLoading ? (
         <div className="space-y-2">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-20 animate-pulse rounded-lg bg-elevated" />
+            <div key={i} className="h-16 animate-pulse rounded-card bg-elevated" />
           ))}
         </div>
       ) : !journals || journals.length === 0 ? (
-        <Card className="p-12 text-center text-secondary">{t("journals.empty")}</Card>
+        <Card className="p-12 text-center text-tertiary">{t("journals.empty")}</Card>
       ) : (
-        <div className="space-y-3">
-          {journals.map((j) => (
-            <Link key={j.id} href={`/journals/${j.id}`}>
-              <Card className="p-4 transition-colors hover:bg-elevated">
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-sm bg-accent/10 px-2 py-0.5 text-caption text-accent">
-                        {j.decision_type}
-                      </span>
-                      {j.thesis_category && (
-                        <span className="text-caption text-secondary">{j.thesis_category}</span>
-                      )}
-                      <span className="text-caption text-muted">{emotionLabel(t, j.emotion)}</span>
-                    </div>
-                    <p className="line-clamp-2 text-small text-primary">{j.thesis}</p>
-                    <p className="text-caption text-muted">{formatDate(j.created_at)}</p>
+        <Card className="divide-y divide-border-subtle overflow-hidden">
+          {journals.map((j) => {
+            const tone = decisionTone(j.decision_type);
+            const emo = emotionLabel(t, j.emotion);
+            return (
+              <Link
+                key={j.id}
+                href={`/journals/${j.id}`}
+                className="group flex items-stretch gap-3 px-4 py-3.5 transition-colors hover:bg-elevated"
+              >
+                {/* 左侧语义色竖条 */}
+                <span className={`w-0.5 shrink-0 rounded-full ${tone.bar}`} />
+
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  {/* 第一行：决策类型 + 类别 + 日期（单行，简洁） */}
+                  <div className="flex items-center gap-2 text-meta">
+                    <span className={`font-semibold ${tone.text}`}>{j.decision_type}</span>
+                    {j.thesis_category && (
+                      <>
+                        <span className="text-border-strong">·</span>
+                        <span className="text-secondary">{j.thesis_category}</span>
+                      </>
+                    )}
+                    {emo && (
+                      <>
+                        <span className="text-border-strong">·</span>
+                        <span className="text-tertiary">{emo}</span>
+                      </>
+                    )}
+                    <span className="ml-auto tnum text-tertiary">{formatDate(j.created_at)}</span>
                   </div>
-                  {j.is_locked && <LockBadge lockedAt={j.locked_at} />}
+
+                  {/* 第二行：投资逻辑摘要 */}
+                  <p className="line-clamp-1 text-body text-primary">{j.thesis}</p>
                 </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
+
+                {/* 右侧：锁定图标 + 进入箭头（轻量，不再用大胶囊） */}
+                <div className="flex shrink-0 items-center gap-2 self-center text-tertiary">
+                  {j.is_locked && <Lock className="h-3.5 w-3.5" />}
+                  <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </div>
+              </Link>
+            );
+          })}
+        </Card>
       )}
     </div>
   );

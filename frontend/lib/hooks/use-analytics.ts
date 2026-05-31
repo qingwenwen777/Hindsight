@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
+import { useUiStore } from "@/lib/store/ui-store";
 
 export interface RiskMetrics {
   available: boolean;
@@ -24,24 +25,34 @@ export interface EquityCurve {
 }
 
 export function useRiskMetrics(days?: number) {
+  const currency = useUiStore((s) => s.baseCurrency);
   return useQuery({
-    queryKey: ["risk-metrics", days],
-    queryFn: async () =>
-      (await api.get<RiskMetrics>(`/portfolio/risk-metrics${days ? `?days=${days}` : ""}`)).data,
+    queryKey: ["risk-metrics", days, currency],
+    queryFn: async () => {
+      const params = new URLSearchParams({ currency });
+      if (days) params.set("days", String(days));
+      return (await api.get<RiskMetrics>(`/portfolio/risk-metrics?${params}`)).data;
+    },
   });
 }
 
 export function useEquityCurve(days?: number) {
+  const currency = useUiStore((s) => s.baseCurrency);
   return useQuery({
-    queryKey: ["equity-curve", days],
-    queryFn: async () =>
-      (await api.get<EquityCurve>(`/portfolio/equity-curve${days ? `?days=${days}` : ""}`)).data,
+    queryKey: ["equity-curve", days, currency],
+    queryFn: async () => {
+      const params = new URLSearchParams({ currency });
+      if (days) params.set("days", String(days));
+      return (await api.get<EquityCurve>(`/portfolio/equity-curve?${params}`)).data;
+    },
   });
 }
 
 export function useReturns(type: "IRR" | "TWR") {
+  const currency = useUiStore((s) => s.baseCurrency);
   return useQuery({
-    queryKey: ["returns", type],
-    queryFn: async () => (await api.get<any>(`/portfolio/returns?type=${type}`)).data,
+    queryKey: ["returns", type, currency],
+    queryFn: async () =>
+      (await api.get<any>(`/portfolio/returns?type=${type}&currency=${currency}`)).data,
   });
 }

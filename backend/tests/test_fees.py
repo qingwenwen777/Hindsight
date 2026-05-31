@@ -79,3 +79,67 @@ def test_no_float_anywhere() -> None:
     assert isinstance(fees.commission, Decimal)
     assert isinstance(fees.tax, Decimal)
     assert isinstance(fees.other_fees, Decimal)
+
+
+def test_db_rules_no_duplicate_for_overlapping(session) -> None:  # noqa: ANN001
+    """同 fee_type 多条规则（区间重叠）只取一条，不重复计费。"""
+    from datetime import date
+
+    from app.models.fee_rule import FeeRule
+
+    # 两条 CN COMMISSION 规则区间重叠，费率不同
+    session.add(
+        FeeRule(
+            market="CN",
+            direction="BOTH",
+            fee_type="COMMISSION",
+            rate=Decimal("0.0003"),
+            effective_from=date(2020, 1, 1),
+        )
+    )
+    session.add(
+        FeeRule(
+            market="CN",
+            direction="BOTH",
+            fee_type="COMMISSION",
+            rate=Decimal("0.0002"),
+            effective_from=date(2024, 1, 1),
+        )
+    )
+    session.commit()
+
+    fees = calculate_fees(
+        "CN", "BUY", amount="100000", quantity="1000",
+        trade_date=date(2026, 1, 1), session=session,
+    )
+    # 只应取较新的一条（0.0002），佣金 = 100000 * 0.0002 = 20，而不是 20+30=50
+    assert fees.commission == Decimal("20")
+
+
+def test_db_rules_fallback_for_uncovered_types(session) -> None:  # noqa: ANN001
+    """DB 只配了佣金时，印花税/过户费回退默认，不漏费（CN SELL）。"""
+    from datetime import date
+
+    from app.models.fee_rule import FeeRule
+
+    session.add(
+        FeeRule(
+            market="CN",
+            direction="BOTH",
+            fee_type="COMMISSION",
+            rate=Decimal("0.0002"),
+            effective_from=date(2020, 1, 1),
+        )
+    )
+    session.commit()
+
+    fees = calculate_fees(
+        "CN", "SELL", amount="100000", quantity="1000",
+        trade_date=date(2026, 1, 1), session=session,
+    ).quantized()
+    # 佣金用 DB 规则：100000 * 0.0002 = 20
+    assert fees.commission == Decimal("20.00")
+    # 印花税回退默认：100000 * 0.05% = 50
+    assert fees.tax == Decimal("50.00")
+    # 过户费回退默认：100000 * 0.001% = 1
+    assert fees.other_fees == Decimal("1.00")

@@ -79,16 +79,26 @@ UNIVERSE: dict[str, list[tuple[str, str, str]]] = {
 
 
 def _register(session: Session, market: str, symbol: str, name: str, name_en: str) -> Stock:
+    from app.services.data_sync.industry_map import lookup_industry
+
     existing = session.exec(
         select(Stock).where(Stock.symbol == symbol, Stock.market == market)
     ).first()
     if existing:
+        # 补全缺失的行业标签
+        if not existing.industry:
+            ind = lookup_industry(symbol, market)
+            if ind:
+                existing.industry = ind
+                session.add(existing)
+                session.commit()
         return existing
     stock = Stock(
         symbol=symbol,
         market=market,
         name=name,
         name_en=name_en,
+        industry=lookup_industry(symbol, market),
         currency=MARKET_CURRENCY[market],
     )
     session.add(stock)

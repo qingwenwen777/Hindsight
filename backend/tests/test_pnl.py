@@ -159,3 +159,63 @@ def test_unrealized_pnl(session: Session) -> None:
     # 最新价 13 → 市值 1300，成本 1000 → 浮盈 300
     assert h.unrealized_pnl(Decimal("13")) == Decimal("300")
     assert h.market_value(Decimal("13")) == Decimal("1300")
+
+
+def test_oversell_protection(session: Session) -> None:
+    """超卖保护：卖出超过持仓时，盈亏只按实际持有部分计，不按零成本虚高。
+
+    买: 100 @10 → 成本 1000
+    卖: 150 @15 → 只能卖出 100 股（消耗成本 1000），收入按 100 股 = 1500
+        已实现盈亏 = 1500 - 1000 = 500（不是按 150 股虚增）
+        超卖 50 股记入 oversold_shares
+    剩余持仓 0 股（不会变负）。
+    """
+    pnl_service.invalidate_holdings_cache()
+    s = _stock(session, symbol="OVSL")
+    _buy(session, s.id, date(2026, 1, 1), "100", "10")
+    _sell(session, s.id, date(2026, 1, 2), "150", "15")
+    session.commit()
+
+    h = pnl_service.compute_holding(session, s.id, use_cache=False)
+    assert h.shares == Decimal("0")
+    assert h.realized_pnl == Decimal("500")
+    assert h.cost_basis == Decimal("0")
+    assert h.oversold_shares == Decimal("50")
+
+
+def test_oversell_with_no_position(session: Session) -> None:
+    """完全无持仓时卖出：不产生任何已实现盈亏，全部记为超卖。"""
+    pnl_service.invalidate_holdings_cache()
+    s = _stock(session, symbol="NAKED")
+    _sell(session, s.id, date(2026, 1, 2), "100", "15")
+    session.commit()
+
+    h = pnl_service.compute_holding(session, s.id, use_cache=False)
+    assert h.shares == Decimal("0")
+    assert h.realized_pnl == Decimal("0")
+    assert h.oversold_shares == Decimal("100")
+
+
+def test_invalid_ratio_split_skipped_with_flag(session: Session) -> None:
+    """ratio 为 0 的拆股被跳过，但记入 invalid_actions（不静默吞没）。
+
+    买: 100 @10 → 持仓 100
+    拆: ratio 0/1 → 无效，跳过，持仓仍 100，invalid_actions=1
+    """
+    pnl_service.invalidate_holdings_cache()
+    s = _stock(session, symbol="BADR")
+    _buy(session, s.id, date(2026, 1, 1), "100", "10")
+    session.add(
+        CorporateAction(
+            stock_id=s.id,
+            action_type="SPLIT",
+            ex_date=date(2026, 1, 5),
+            ratio_num=Decimal("0"),
+            ratio_den=Decimal("1"),
+        )
+    )
+    session.commit()
+
+    h = pnl_service.compute_holding(session, s.id, use_cache=False)
+    assert h.shares == Decimal("100")
+    assert h.invalid_actions == 1

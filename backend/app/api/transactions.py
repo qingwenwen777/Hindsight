@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel, Field, field_validator
@@ -19,6 +19,9 @@ from app.models.stock import Stock
 from app.models.transaction import Transaction
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+# 允许的交易币种集合（与系统支持的市场币种一致）
+_ALLOWED_CURRENCIES = {"JPY", "USD", "CNY", "HKD"}
 
 
 class JournalIn(BaseModel):
@@ -63,6 +66,45 @@ class TransactionIn(BaseModel):
             raise ValueError("type 必须是 BUY 或 SELL")
         return v.upper()
 
+    @field_validator("currency")
+    @classmethod
+    def _check_currency(cls, v: str) -> str:
+        cur = v.upper()
+        if cur not in _ALLOWED_CURRENCIES:
+            raise ValueError(f"currency 必须是 {sorted(_ALLOWED_CURRENCIES)} 之一")
+        return cur
+
+    @field_validator("quantity", "price")
+    @classmethod
+    def _check_positive(cls, v: str, info) -> str:  # noqa: ANN001
+        try:
+            d = D(v)
+        except (InvalidOperation, TypeError) as exc:
+            raise ValueError(f"{info.field_name} 必须是合法数字") from exc
+        if d <= 0:
+            raise ValueError(f"{info.field_name} 必须大于 0")
+        return v
+
+    @field_validator("commission", "tax", "other_fees")
+    @classmethod
+    def _check_non_negative(cls, v: str | None, info) -> str | None:  # noqa: ANN001
+        if v is None:
+            return v
+        try:
+            d = D(v)
+        except (InvalidOperation, TypeError) as exc:
+            raise ValueError(f"{info.field_name} 必须是合法数字") from exc
+        if d < 0:
+            raise ValueError(f"{info.field_name} 不能为负")
+        return v
+
+    @field_validator("trade_date")
+    @classmethod
+    def _check_not_future(cls, v: date) -> date:
+        if v > date.today():
+            raise ValueError("trade_date 不能是未来日期")
+        return v
+
 
 def _serialize_tx(tx: Transaction) -> dict:
     return {
@@ -93,6 +135,13 @@ def create_transaction(payload: TransactionIn, session: Session = Depends(get_se
     stock = session.get(Stock, payload.stock_id)
     if not stock:
         raise HTTPException(status_code=404, detail="股票不存在")
+
+    # 币种必须与股票币种一致，避免跨币种金额错配（如给 JPY 股票录 USD 价）
+    if stock.currency and payload.currency.upper() != stock.currency.upper():
+        raise HTTPException(
+            status_code=422,
+            detail=f"交易币种 {payload.currency.upper()} 与股票币种 {stock.currency.upper()} 不一致",
+        )
 
     quantity = D(payload.quantity)
     price = D(payload.price)
@@ -153,12 +202,7 @@ def create_transaction(payload: TransactionIn, session: Session = Depends(get_se
     )
     session.add(tx)
 
-    # 3. 失效持仓缓存（Step 6 接入缓存后启用）
-    from app.services.analysis import pnl as pnl_service
-
-    pnl_service.invalidate_holdings_cache(payload.stock_id)
-
-    # 4. 若指定现金账户，自动产生交易现金流
+    # 若指定现金账户，自动产生交易现金流
     if payload.account_id is not None:
         session.flush()  # 拿到 tx.id
         from app.services.analysis import cash as cash_service
@@ -227,18 +271,43 @@ def get_transaction(tx_id: int, session: Session = Depends(get_session)) -> dict
 
 @router.delete("/{tx_id}", summary="删除交易（仅未锁定的占位记录）")
 def delete_transaction(tx_id: int, session: Session = Depends(get_session)) -> dict:
-    """仅允许删除导入的占位记录（其 journal 未锁定）。"""
+    """仅允许删除导入的占位记录（其 journal 未锁定）。
+
+    删除时一并清理：
+    - 该交易产生的现金流（related_tx_id 指向本交易），否则外键约束会报 IntegrityError；
+    - 关联的占位 journal（is_imported 且未被其它交易引用），避免留下孤儿日志。
+    """
+    from app.models.cash import CashFlow
+
     tx = session.get(Transaction, tx_id)
     if not tx:
         raise HTTPException(status_code=404, detail="交易不存在")
-    if tx.journal_id:
-        journal = session.get(Journal, tx.journal_id)
-        if journal and journal.is_locked and not journal.is_imported:
-            raise HTTPException(status_code=403, detail="已锁定日志的交易不可删除")
-    session.delete(tx)
-    from app.services.analysis import pnl as pnl_service
 
-    pnl_service.invalidate_holdings_cache(tx.stock_id)
+    journal = session.get(Journal, tx.journal_id) if tx.journal_id else None
+    if journal and journal.is_locked and not journal.is_imported:
+        raise HTTPException(status_code=403, detail="已锁定日志的交易不可删除")
+
+    journal_id = tx.journal_id
+
+    # 1. 先删该交易关联的现金流（外键 related_tx_id 指向本交易）
+    linked_flows = session.exec(
+        select(CashFlow).where(CashFlow.related_tx_id == tx_id)
+    ).all()
+    for cf in linked_flows:
+        session.delete(cf)
+
+    # 2. 删交易本体
+    session.delete(tx)
+    session.flush()
+
+    # 3. 清理孤儿占位 journal：仅当是导入占位且不再被任何交易引用时删除
+    if journal_id is not None and journal is not None and journal.is_imported:
+        still_referenced = session.exec(
+            select(Transaction.id).where(Transaction.journal_id == journal_id)
+        ).first()
+        if not still_referenced:
+            session.delete(journal)
+
     session.commit()
     return ok({"deleted": tx_id})
 

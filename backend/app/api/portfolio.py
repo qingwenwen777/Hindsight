@@ -42,6 +42,7 @@ def get_holdings(session: Session = Depends(get_session)) -> dict:
                 "market_value": to_db_str(quantize_money(mv)) if mv is not None else None,
                 "unrealized_pnl": to_db_str(quantize_money(upnl)) if upnl is not None else None,
                 "realized_pnl": to_db_str(quantize_money(h.realized_pnl)),
+                "oversold_shares": to_db_str(h.oversold_shares) if h.oversold_shares > ZERO else None,
             }
         )
     return ok(data, meta=Meta(total=len(data)))
@@ -66,6 +67,7 @@ def get_summary(
     mv_available = True
     estimated = False
     warnings: list[str] = []
+    unconverted: set[str] = set()  # 缺汇率、未能并入基准合计的币种
 
     today = date.today()
 
@@ -88,6 +90,11 @@ def get_summary(
                 pass
 
     def _conv(amount: Decimal | None, from_ccy: str) -> Decimal | None:
+        """换算到基准币种。
+
+        缺汇率时返回 None（不再把外币原值直接并入基准合计，避免跨币种直接相加），
+        并记录该币种到 unconverted，由调用方计入 warnings。
+        """
         nonlocal estimated
         if amount is None:
             return None
@@ -99,8 +106,8 @@ def get_summary(
                 estimated = True
             return amount * q.rate
         except FxRateUnavailable:
-            warnings.append(f"缺少 {from_ccy}->{currency} 汇率，{from_ccy} 部分未换算")
-            return amount  # 兜底：原币种并入
+            unconverted.add(from_ccy)
+            return None
 
     for ph in items:
         h = ph.holding
@@ -116,12 +123,32 @@ def get_summary(
             mv_available = False
         else:
             cmv = _conv(mv, ccy)
-            if cmv is not None:
+            if cmv is None:
+                # 该币种市值无法换算 → 基准币种市值合计不完整
+                mv_available = False
+            else:
                 total_mv += cmv
-            upnl = h.unrealized_pnl(ph.last_price)
-            cupnl = _conv(upnl, ccy)
-            if cupnl is not None:
-                total_upnl += cupnl
+                upnl = h.unrealized_pnl(ph.last_price)
+                cupnl = _conv(upnl, ccy)
+                if cupnl is not None:
+                    total_upnl += cupnl
+
+    for fc in sorted(unconverted):
+        warnings.append(f"缺少 {fc}->{currency} 汇率，{fc} 持仓未并入基准币种合计")
+    if unconverted:
+        estimated = True
+
+    # 数据完整性告警：超卖（卖出超过持仓）与无效公司行动（ratio 缺失/为 0）
+    for ph in items:
+        if ph.holding.oversold_shares > ZERO:
+            warnings.append(
+                f"{ph.stock.symbol} 存在超卖 {to_db_str(ph.holding.oversold_shares)} 股"
+                f"（卖出数量超过持仓），请检查交易记录"
+            )
+        if ph.holding.invalid_actions:
+            warnings.append(
+                f"{ph.stock.symbol} 有 {ph.holding.invalid_actions} 条公司行动因 ratio 无效被跳过"
+            )
 
     return ok(
         {

@@ -23,19 +23,35 @@ ZERO = Decimal("0")
 _EXTERNAL_TYPES = {"DEPOSIT", "WITHDRAW"}
 
 
-def _current_portfolio_value(session: Session) -> Decimal:
-    """当前组合市值（无最新价的持仓按成本计）。"""
+def _current_portfolio_value(session: Session, currency: str | None = None) -> Decimal:
+    """当前组合市值（无最新价的持仓按成本计）。
+
+    currency 不为空时按当天汇率换算到基准币种，避免跨币种直接相加。
+    """
+    from datetime import date as _date
+
+    from app.core.currency import FxRateUnavailable, get_fx_quote
+
+    target = currency.upper() if currency else None
     items = pnl_service.compute_all_holdings(session)
     total = ZERO
     for ph in items:
         mv = ph.holding.market_value(ph.last_price)
-        total += mv if mv is not None else ph.holding.cost_basis
+        base_val = mv if mv is not None else ph.holding.cost_basis
+        if target and ph.stock.currency and ph.stock.currency.upper() != target:
+            try:
+                q = get_fx_quote(session, ph.stock.currency, target, _date.today())
+                base_val = base_val * q.rate
+            except FxRateUnavailable:
+                continue  # 缺汇率：跳过，不把未换算外币并入
+        total += base_val
     return total
 
 
 @router.get("/returns", summary="组合收益率 (TWR/IRR)")
 def get_returns(
     type: str = Query("IRR", description="TWR 或 IRR"),
+    currency: str = Query("JPY", description="基准币种 JPY/USD/CNY/HKD"),
     session: Session = Depends(get_session),
 ) -> dict:
     """计算组合收益率。
@@ -44,9 +60,10 @@ def get_returns(
     TWR：当前实现基于现金流切段的简化口径（需要逐日估值序列才能精确，
          在缺少历史估值快照时退化为按外部现金流分段，返回近似值）。
     """
+    currency = currency.upper()
     rtype = type.upper()
     flows = list(session.exec(select(CashFlow).order_by(CashFlow.flow_date)).all())
-    current_value = _current_portfolio_value(session)
+    current_value = _current_portfolio_value(session, currency)
 
     if rtype == "IRR":
         points: list[CashFlowPoint] = []
@@ -92,13 +109,14 @@ def get_returns(
 @router.get("/risk-metrics", summary="风险指标 (回撤/夏普/卡玛)")
 def get_risk_metrics(
     days: int | None = Query(None, description="回溯天数；空为全部"),
+    currency: str = Query("JPY", description="基准币种 JPY/USD/CNY/HKD"),
     session: Session = Depends(get_session),
 ) -> dict:
     """基于组合净值曲线计算最大回撤、夏普、卡玛、年化波动等。"""
     from app.services.analysis.equity import build_equity_curve
     from app.services.analysis.risk import compute_risk_metrics
 
-    dates, equity = build_equity_curve(session, days)
+    dates, equity = build_equity_curve(session, days, currency.upper())
     if len(equity) < 2:
         return ok(
             {
@@ -127,12 +145,13 @@ def get_risk_metrics(
 @router.get("/equity-curve", summary="组合净值曲线")
 def get_equity_curve(
     days: int | None = Query(None, description="回溯天数；空为全部"),
+    currency: str = Query("JPY", description="基准币种 JPY/USD/CNY/HKD"),
     session: Session = Depends(get_session),
 ) -> dict:
     """返回组合每日净值（归一化到起点 100）+ 原始市值。"""
     from app.services.analysis.equity import build_equity_curve
 
-    dates, equity = build_equity_curve(session, days)
+    dates, equity = build_equity_curve(session, days, currency.upper())
     if not equity:
         return ok({"dates": [], "equity": [], "normalized": []})
     base = equity[0] if equity[0] != 0 else 1.0

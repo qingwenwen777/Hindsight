@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date
+from decimal import InvalidOperation
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -50,9 +51,16 @@ def create_action(payload: CorporateActionCreate, session: Session = Depends(get
     at = payload.action_type.upper()
     if at not in ("SPLIT", "BONUS", "RIGHTS", "MERGE"):
         raise HTTPException(status_code=422, detail="action_type 非法")
-    # SPLIT/BONUS 必须有 ratio
-    if at in ("SPLIT", "BONUS") and (not payload.ratio_num or not payload.ratio_den):
-        raise HTTPException(status_code=422, detail="拆股/送股必须提供 ratio_num/ratio_den")
+    # SPLIT/BONUS 必须有有效的正比例 ratio（分子分母均 > 0），否则会导致持仓口径错误
+    if at in ("SPLIT", "BONUS"):
+        if not payload.ratio_num or not payload.ratio_den:
+            raise HTTPException(status_code=422, detail="拆股/送股必须提供 ratio_num/ratio_den")
+        try:
+            rn, rd = D(payload.ratio_num), D(payload.ratio_den)
+        except (InvalidOperation, TypeError) as exc:
+            raise HTTPException(status_code=422, detail="ratio_num/ratio_den 必须是合法数字") from exc
+        if rn <= 0 or rd <= 0:
+            raise HTTPException(status_code=422, detail="ratio_num/ratio_den 必须大于 0")
 
     ca = CorporateAction(
         stock_id=payload.stock_id,

@@ -113,7 +113,26 @@ def _calc_from_defaults(
     return fees
 
 
-def _calc_from_db_rules(rules: list[FeeRule], amount: Decimal, quantity: Decimal) -> Fees:
+def _select_best_rule(rules: list[FeeRule], broker: str | None, trade_date: date | None) -> FeeRule:
+    """在同一 fee_type 的多条候选规则里挑唯一一条，避免区间重叠重复计费。
+
+    优先级：
+      1. broker 精确匹配优先于通配规则；
+      2. effective_from 较晚（更新版本）优先；
+      3. effective_to 较晚（更长有效）优先。
+    """
+    def _key(r: FeeRule) -> tuple:
+        broker_match = 1 if (broker and r.broker == broker) else 0
+        eff_from = r.effective_from or date.min
+        eff_to = r.effective_to or date.max
+        return (broker_match, eff_from, eff_to)
+
+    return max(rules, key=_key)
+
+
+def _calc_from_db_rules(
+    rules: list[FeeRule], amount: Decimal, quantity: Decimal
+) -> tuple[Fees, set[str]]:
     """用 DB 中匹配到的版本化规则计算。
 
     fee_type 语义：
@@ -121,9 +140,20 @@ def _calc_from_db_rules(rules: list[FeeRule], amount: Decimal, quantity: Decimal
       STAMP / TAX → 计入 tax
       其他（SEC_FEE/FINRA/TRANSFER/LEVY…）→ 计入 other_fees
     per_share 优先于 rate（用于 FINRA 每股费）。
+
+    返回 (Fees, 覆盖的类别集合)。类别为 {"commission","tax","other_fees"}，
+    供上层判断哪些类别需要回退默认值。
+    同一 fee_type 若有多条规则（如区间重叠），只取最匹配的一条，杜绝重复计费。
     """
-    fees = Fees()
+    # 按 fee_type 分组，每组只保留一条最匹配规则
+    by_type: dict[str, list[FeeRule]] = {}
     for r in rules:
+        by_type.setdefault(r.fee_type.upper(), []).append(r)
+
+    fees = Fees()
+    covered: set[str] = set()
+    for ft, group in by_type.items():
+        r = group[0] if len(group) == 1 else _select_best_rule(group, None, None)
         if r.per_share is not None:
             amt = quantity * r.per_share
         elif r.fixed_amount is not None:
@@ -135,14 +165,16 @@ def _calc_from_db_rules(rules: list[FeeRule], amount: Decimal, quantity: Decimal
         if r.min_amount is not None and amt < r.min_amount:
             amt = r.min_amount
 
-        ft = r.fee_type.upper()
         if ft == "COMMISSION":
             fees.commission += amt
+            covered.add("commission")
         elif ft in ("STAMP", "TAX"):
             fees.tax += amt
+            covered.add("tax")
         else:
             fees.other_fees += amt
-    return fees
+            covered.add("other_fees")
+    return fees, covered
 
 
 def calculate_fees(
@@ -184,6 +216,15 @@ def calculate_fees(
                 continue
             matched.append(r)
         if matched:
-            return _calc_from_db_rules(matched, amount, quantity)
+            db_fees, covered = _calc_from_db_rules(matched, amount, quantity)
+            # 部分配置回退：DB 只配了某些类别（如仅 COMMISSION）时，
+            # 未配置的类别（印花税/过户费等）回退到预置默认，避免漏费。
+            defaults = _calc_from_defaults(market, direction, amount, quantity)
+            merged = Fees(
+                commission=db_fees.commission if "commission" in covered else defaults.commission,
+                tax=db_fees.tax if "tax" in covered else defaults.tax,
+                other_fees=db_fees.other_fees if "other_fees" in covered else defaults.other_fees,
+            )
+            return merged
 
     return _calc_from_defaults(market, direction, amount, quantity)

@@ -13,13 +13,36 @@ ZERO = Decimal("0")
 
 
 def account_balance(session: Session, account_id: int) -> Decimal:
-    """账户余额 = 所有现金流 amount 之和（正入负出）。"""
+    """账户余额（以账户币种计）。
+
+    现金流的 currency 正常应与账户币种一致；历史/异常数据中可能混入其它币种。
+    为避免跨币种直接相加（把 USD 与 JPY 数值当同币种求和），这里：
+      - 与账户同币种的流水直接累加；
+      - 不同币种的流水按当天汇率换算到账户币种后并入（缺汇率则跳过，不污染余额）。
+    """
+    acc = session.get(CashAccount, account_id)
+    acc_ccy = acc.currency.upper() if acc and acc.currency else None
+
     flows = session.exec(
-        select(CashFlow.amount).where(CashFlow.account_id == account_id)
+        select(CashFlow.amount, CashFlow.currency).where(CashFlow.account_id == account_id)
     ).all()
     total = ZERO
-    for a in flows:
-        total += D(a)
+    for amount, ccy in flows:
+        amt = D(amount)
+        fccy = (ccy or acc_ccy or "").upper()
+        if acc_ccy is None or fccy == acc_ccy:
+            total += amt
+            continue
+        # 跨币种：换算到账户币种
+        from datetime import date
+
+        from app.core.currency import FxRateUnavailable, get_fx_quote
+
+        try:
+            q = get_fx_quote(session, fccy, acc_ccy, date.today())
+            total += amt * q.rate
+        except FxRateUnavailable:
+            continue  # 缺汇率：跳过，避免把异币种原值并入
     return total
 
 
