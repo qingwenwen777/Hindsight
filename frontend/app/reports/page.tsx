@@ -92,7 +92,7 @@ export default function ReportsPage() {
               <Stat label={t("reports.totalFees")} value={formatMoney(report.total_fees, report.currency)} />
             </div>
           ) : (
-            <div className="h-24 animate-pulse rounded-md bg-elevated" />
+            <div className="skeleton h-24 rounded-md" />
           )}
         </CardContent>
       </Card>

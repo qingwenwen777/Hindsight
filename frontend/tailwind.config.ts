@@ -89,6 +89,38 @@ const config: Config = {
         "6": "24px",
         "8": "32px",
       },
+      keyframes: {
+        // 骨架屏微光：一道高光从左扫到右
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        // 纯透明度淡入（reduced-motion 兜底用）
+        "fade-in": {
+          "0%": { opacity: "0" },
+          "100%": { opacity: "1" },
+        },
+        // 内容入场：极小上移 + 淡入（位移 4px，时长短）
+        "fade-in-up": {
+          "0%": { opacity: "0", transform: "translateY(4px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
+        // 数值更新闪色：背景闪一下对应涨跌色再淡出（用 color-mix 注入 alpha）
+        "flash-up": {
+          "0%": { backgroundColor: "color-mix(in srgb, var(--up) 22%, transparent)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        "flash-down": {
+          "0%": { backgroundColor: "color-mix(in srgb, var(--down) 22%, transparent)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+      },
+      animation: {
+        shimmer: "shimmer 1.6s ease-in-out infinite",
+        "fade-in": "fade-in 200ms ease-out both",
+        "fade-in-up": "fade-in-up 200ms ease-out both",
+        "flash-up": "flash-up 440ms ease-out",
+        "flash-down": "flash-down 440ms ease-out",
+      },
     },
   },
   plugins: [require("tailwindcss-animate")],

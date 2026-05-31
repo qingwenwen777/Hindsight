@@ -42,7 +42,7 @@ export default function InsightDetailPage() {
       </div>
 
       {isLoading ? (
-        <div className="h-64 animate-pulse rounded-lg bg-elevated" />
+        <div className="skeleton h-64 rounded-card" />
       ) : !doc ? (
         <Card className="p-12 text-center text-secondary">{t("insights.notFound")}</Card>
       ) : (

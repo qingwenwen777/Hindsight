@@ -4,16 +4,20 @@ import Link from "next/link";
 
 import { PnL } from "@/components/stats/pnl";
 import { Card } from "@/components/ui/card";
+import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
+import { RefetchIndicator } from "@/components/ui/refetch-indicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney, formatQuantity } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
 import { useHoldings } from "@/lib/hooks/use-portfolio";
 
 export default function HoldingsPage() {
   const { t } = useT();
-  const { data: holdings, isLoading } = useHoldings();
+  const { data: holdings, isLoading, isFetching } = useHoldings();
 
   return (
     <div className="space-y-6">
+      <RefetchIndicator active={isFetching && !isLoading} />
       <div>
         <h1 className="text-h1 text-primary">{t("holdings.title")}</h1>
         <p className="text-small text-secondary">{t("holdings.subtitle")}</p>
@@ -34,11 +38,15 @@ export default function HoldingsPage() {
           </thead>
           <tbody>
             {isLoading ? (
-              [0, 1, 2].map((i) => (
-                <tr key={i}>
-                  <td colSpan={7} className="px-4 py-3">
-                    <div className="h-6 animate-pulse rounded bg-elevated" />
-                  </td>
+              [0, 1, 2, 3, 4].map((i) => (
+                <tr key={i} className="border-b border-border-subtle/50">
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-32" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-14 justify-self-end ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 justify-self-end ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 justify-self-end ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-20 justify-self-end ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 justify-self-end ml-auto" /></td>
+                  <td className="px-4 py-3"><Skeleton className="h-4 w-16 justify-self-end ml-auto" /></td>
                 </tr>
               ))
             ) : !holdings || holdings.length === 0 ? (
@@ -51,8 +59,13 @@ export default function HoldingsPage() {
                 </td>
               </tr>
             ) : (
-              holdings.map((h) => (
-                <tr key={h.stock_id} className="border-b border-border-subtle/50 hover:bg-elevated">
+              holdings.map((h, i) => (
+                <FadeIn
+                  as="tr"
+                  key={h.stock_id}
+                  delay={staggerDelay(i)}
+                  className="border-b border-border-subtle/50 transition-colors duration-150 hover:bg-elevated"
+                >
                   <td className="px-4 py-3">
                     <Link href={`/stocks/${h.stock_id}`} className="text-primary hover:text-accent">
                       {h.name} <span className="tnum text-secondary">{h.symbol}</span>
@@ -64,7 +77,7 @@ export default function HoldingsPage() {
                   <td className="tnum px-4 py-3 text-right text-primary">{formatMoney(h.market_value ?? h.cost_basis, h.currency)}</td>
                   <td className="px-4 py-3 text-right"><PnL value={h.unrealized_pnl} currency={h.currency} /></td>
                   <td className="px-4 py-3 text-right"><PnL value={h.realized_pnl} currency={h.currency} /></td>
-                </tr>
+                </FadeIn>
               ))
             )}
           </tbody>

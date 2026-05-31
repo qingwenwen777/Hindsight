@@ -15,12 +15,15 @@ import { PnL } from "@/components/stats/pnl";
 import { Stat } from "@/components/stats/stat";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
+import { RefetchIndicator } from "@/components/ui/refetch-indicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEquityCurve } from "@/lib/hooks/use-analytics";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
-import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
+import { formatMoney, pnlDirection } from "@/lib/format";
 
 /**
  * 仪表盘首页（Hindsight / TradingView 风格）。
@@ -29,10 +32,17 @@ import { formatMoney, formatPercent, pnlDirection } from "@/lib/format";
 export default function DashboardPage() {
   const { t } = useT();
   const baseCurrency = useUiStore((s) => s.baseCurrency);
-  const { data: summary, isLoading: summaryLoading } = useSummary(baseCurrency);
-  const { data: holdings, isLoading: holdingsLoading } = useHoldings();
+  const { data: summary, isLoading: summaryLoading, isFetching: summaryFetching } = useSummary(baseCurrency);
+  const { data: holdings, isLoading: holdingsLoading, isFetching: holdingsFetching } = useHoldings();
   const { data: reminders } = useReviewReminders();
   const { data: equity } = useEquityCurve();
+
+  // 后台刷新（有旧数据但在重新拉取）时只在顶部显示极淡指示，不退回骨架
+  const refetching =
+    (summaryFetching && !summaryLoading) || (holdingsFetching && !holdingsLoading);
+
+  const moneyFmt = (n: number) => formatMoney(n, baseCurrency);
+  const moneyFmtSigned = (n: number) => formatMoney(n, baseCurrency, { sign: true });
 
   const equityData =
     equity?.dates.map((d, i) => ({ date: d, value: equity.normalized[i] })) ?? [];
@@ -55,6 +65,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
+      <RefetchIndicator active={refetching} />
       {/* 页头 */}
       <div className="mb-4.5 flex items-end justify-between">
         <div>
@@ -72,35 +83,29 @@ export default function DashboardPage() {
       <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Stat
           label={t("dashboard.totalAssets")}
-          value={
-            summaryLoading
-              ? "…"
-              : summary?.total_market_value
-                ? formatMoney(summary.total_market_value, baseCurrency)
-                : formatMoney(summary?.total_cost, baseCurrency)
-          }
+          loading={summaryLoading}
+          numeric={Number(summary?.total_market_value ?? summary?.total_cost ?? 0)}
+          format={moneyFmt}
         />
         <Stat
           label={t("dashboard.totalCost")}
-          value={summaryLoading ? "…" : formatMoney(summary?.total_cost, baseCurrency)}
+          loading={summaryLoading}
+          numeric={Number(summary?.total_cost ?? 0)}
+          format={moneyFmt}
         />
         <Stat
           label={t("dashboard.unrealizedPnl")}
-          value={
-            summaryLoading
-              ? "…"
-              : formatMoney(summary?.total_unrealized_pnl, baseCurrency, { sign: true })
-          }
+          loading={summaryLoading}
+          numeric={Number(summary?.total_unrealized_pnl ?? 0)}
+          format={moneyFmtSigned}
           colorValue
           direction={pnlDirection(summary?.total_unrealized_pnl)}
         />
         <Stat
           label={t("dashboard.realizedPnl")}
-          value={
-            summaryLoading
-              ? "…"
-              : formatMoney(summary?.total_realized_pnl, baseCurrency, { sign: true })
-          }
+          loading={summaryLoading}
+          numeric={Number(summary?.total_realized_pnl ?? 0)}
+          format={moneyFmtSigned}
           colorValue
           direction={pnlDirection(summary?.total_realized_pnl)}
         />
@@ -208,9 +213,17 @@ export default function DashboardPage() {
           <div>{t("dashboard.col.status")}</div>
         </div>
         {holdingsLoading ? (
-          [0, 1, 2].map((i) => (
-            <div key={i} className="border-b border-border-default px-5 py-3">
-              <div className="h-6 animate-pulse rounded bg-elevated" />
+          [0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="grid min-h-[44px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 border-b border-border-default px-5"
+            >
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-4 w-16 justify-self-end" />
+              <Skeleton className="h-4 w-16 justify-self-end" />
+              <Skeleton className="h-4 w-14 justify-self-end" />
+              <Skeleton className="h-4 w-12 justify-self-end" />
+              <Skeleton className="h-4 w-14" />
             </div>
           ))
         ) : sorted.length === 0 ? (
@@ -221,7 +234,7 @@ export default function DashboardPage() {
             </Link>
           </div>
         ) : (
-          sorted.map((h) => {
+          sorted.map((h, i) => {
             const w = totalWeightBase > 0
               ? (Number(h.market_value ?? h.cost_basis) / totalWeightBase) * 100
               : 0;
@@ -231,10 +244,12 @@ export default function DashboardPage() {
                 ? (Number(h.unrealized_pnl) / Number(h.cost_basis)) * 100
                 : null;
             return (
-              <Link
+              <FadeIn
+                as={Link}
                 key={h.stock_id}
+                delay={staggerDelay(i)}
                 href={`/stocks/${h.stock_id}`}
-                className="grid min-h-[44px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 border-b border-border-default px-5 last:border-b-0 hover:bg-elevated"
+                className="grid min-h-[44px] grid-cols-[1.25fr_repeat(4,1fr)_1.1fr] items-center gap-4 border-b border-border-default px-5 transition-colors duration-150 last:border-b-0 hover:bg-elevated"
               >
                 <div>
                   <div className="font-medium text-primary">{h.symbol}</div>
@@ -257,7 +272,7 @@ export default function DashboardPage() {
                     </span>
                   )}
                 </div>
-              </Link>
+              </FadeIn>
             );
           })
         )}

@@ -76,7 +76,7 @@ export default function EmotionAuditPage() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="h-64 animate-pulse rounded-md bg-elevated" />
+            <div className="skeleton h-64 rounded-md" />
           ) : chartData.length === 0 ? (
             <div className="flex h-64 items-center justify-center text-secondary">
               {t("emotion.noData")}

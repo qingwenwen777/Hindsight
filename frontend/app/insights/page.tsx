@@ -8,6 +8,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
+import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
+import { RefetchIndicator } from "@/components/ui/refetch-indicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select } from "@/components/ui/select";
 import { useT } from "@/lib/i18n/use-t";
 import {
@@ -36,7 +39,7 @@ export default function InsightsPage() {
   const [type, setType] = useState<string>("");
   const [page, setPage] = useState(1);
   const pageSize = 20;
-  const { data, isLoading, isError, refetch } = useInsightDocuments(
+  const { data, isLoading, isError, isFetching, refetch } = useInsightDocuments(
     type || undefined,
     undefined,
     page,
@@ -94,6 +97,7 @@ export default function InsightsPage() {
 
   return (
     <div className="space-y-4">
+      <RefetchIndicator active={isFetching && !isLoading} />
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-display text-secondary">{t("insights.title")}</h1>
@@ -150,9 +154,13 @@ export default function InsightsPage() {
 
       <Card className="overflow-hidden">
         {isLoading ? (
-          [0, 1, 2].map((i) => (
-            <div key={i} className="border-b border-border-default px-5 py-3">
-              <div className="h-6 animate-pulse rounded bg-elevated" />
+          [0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-border-default px-5 py-3.5 last:border-b-0">
+              <Skeleton className="h-2 w-2 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-3 w-40" />
+              </div>
             </div>
           ))
         ) : isError ? (
@@ -170,10 +178,11 @@ export default function InsightsPage() {
             <div className="mt-1 text-meta text-tertiary">{t("insights.emptyHint")}</div>
           </div>
         ) : (
-          docs.map((d) => (
-            <div
+          docs.map((d, i) => (
+            <FadeIn
               key={d.id}
-              className="flex items-center justify-between gap-3 border-b border-border-default px-5 py-3 last:border-b-0 hover:bg-elevated"
+              delay={staggerDelay(i)}
+              className="flex items-center justify-between gap-3 border-b border-border-default px-5 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated"
             >
               <Link href={`/insights/${d.id}`} className="flex min-w-0 flex-1 items-center gap-3">
                 {!d.is_read && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
@@ -207,7 +216,7 @@ export default function InsightsPage() {
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-            </div>
+            </FadeIn>
           ))
         )}
       </Card>

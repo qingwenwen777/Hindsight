@@ -38,7 +38,15 @@ export default function JournalDetailPage() {
   const [showForm, setShowForm] = useState(false);
 
   if (isLoading) {
-    return <div className="h-64 animate-pulse rounded-card bg-elevated" />;
+    return (
+      <div className="mx-auto max-w-3xl space-y-4">
+        <div className="space-y-2">
+          <div className="skeleton h-7 w-48" />
+          <div className="skeleton h-3.5 w-72" />
+        </div>
+        <div className="skeleton h-64 rounded-card" />
+      </div>
+    );
   }
   if (!journal) {
     return <Card className="p-12 text-center text-tertiary">{t("journal.notFound")}</Card>;

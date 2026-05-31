@@ -172,7 +172,7 @@ export default function StockDetailPage() {
           </div>
           <div className="overflow-hidden rounded-lg border border-border-default bg-base">
             {pricesLoading ? (
-              <div className="h-[450px] animate-pulse bg-elevated" />
+              <div className="skeleton h-[450px]" />
             ) : (
               <CandleChart
                 prices={rangedPrices}
@@ -205,7 +205,7 @@ export default function StockDetailPage() {
             {indicators ? (
               <IndicatorPanel indicators={indicators} type={subPanel} />
             ) : (
-              <div className="h-[140px] animate-pulse bg-elevated" />
+              <div className="skeleton h-[140px]" />
             )}
           </div>
 

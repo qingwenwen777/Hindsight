@@ -4,10 +4,12 @@ import { Plus, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
-import { PnL } from "@/components/stats/pnl";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { FadeIn, staggerDelay } from "@/components/ui/fade-in";
 import { Input } from "@/components/ui/input";
+import { RefetchIndicator } from "@/components/ui/refetch-indicator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatMoney } from "@/lib/format";
 import { useT } from "@/lib/i18n/use-t";
 import { useCreateStock, useStockDiscover, useStockSearch } from "@/lib/hooks/use-portfolio";
@@ -21,7 +23,7 @@ export default function WatchlistPage() {
   const localEmpty = !!q && (results ?? []).length === 0;
   // 本地查不到时，从数据源发现
   const { data: discovered, isFetching: discovering } = useStockDiscover(q, localEmpty);
-  const { data: watch } = useWatchlist();
+  const { data: watch, isLoading: watchLoading, isFetching: watchFetching } = useWatchlist();
   const add = useAddWatch();
   const remove = useRemoveWatch();
   const createStock = useCreateStock();
@@ -57,6 +59,7 @@ export default function WatchlistPage() {
 
   return (
     <div className="space-y-4">
+      <RefetchIndicator active={watchFetching && !watchLoading} />
       <div>
         <h1 className="text-display text-secondary">{t("watchlist.title")}</h1>
         <p className="mt-2 text-meta text-tertiary">{t("watchlist.subtitle")}</p>
@@ -147,13 +150,29 @@ export default function WatchlistPage() {
           <div>{t("watchlist.col.tags")}</div>
           <div className="text-right">{t("watchlist.col.actions")}</div>
         </div>
-        {!watch || watch.length === 0 ? (
+        {watchLoading ? (
+          [0, 1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-default px-5 py-3 last:border-b-0"
+            >
+              <div className="space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-20" />
+              </div>
+              <Skeleton className="h-4 w-16 justify-self-end" />
+              <Skeleton className="h-4 w-12" />
+              <Skeleton className="h-7 w-7 justify-self-end rounded-md" />
+            </div>
+          ))
+        ) : !watch || watch.length === 0 ? (
           <div className="px-5 py-12 text-center text-tertiary">{t("watchlist.empty")}</div>
         ) : (
-          watch.map((w) => (
-            <div
+          watch.map((w, i) => (
+            <FadeIn
               key={w.id}
-              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-default px-5 py-3 last:border-b-0 hover:bg-elevated"
+              delay={staggerDelay(i)}
+              className="grid grid-cols-[1.4fr_1fr_1fr_auto] items-center gap-4 border-b border-border-default px-5 py-3 transition-colors duration-150 last:border-b-0 hover:bg-elevated"
             >
               <Link href={`/stocks/${w.stock_id}`} className="hover:text-accent">
                 <div className="font-medium text-primary">{w.name}</div>
@@ -172,13 +191,13 @@ export default function WatchlistPage() {
               <div className="text-right">
                 <button
                   onClick={() => remove.mutate(w.stock_id)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tertiary hover:bg-base hover:text-danger"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-md text-tertiary transition-colors duration-150 hover:bg-base hover:text-danger"
                   aria-label={t("watchlist.unwatch")}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
               </div>
-            </div>
+            </FadeIn>
           ))
         )}
       </Card>
