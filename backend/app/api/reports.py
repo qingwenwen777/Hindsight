@@ -45,6 +45,57 @@ def emotion_audit(
     return ok({"by_emotion": data, "conclusions": conclusions})
 
 
+@router.get("/decision-calibration", summary="信心校准度")
+def decision_calibration(
+    start: date | None = Query(None),
+    end: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> dict:
+    """按录入信心(1-5)对比"主观隐含胜率" vs "实际胜率"，揭示过度自信/信心不足。"""
+    from app.services.biases.decision_audit import confidence_calibration
+
+    rows, conclusions = confidence_calibration(session, start, end)
+    data = [
+        {
+            "confidence": r.confidence,
+            "implied_win_rate": round(r.implied_win_rate, 4),
+            "implied_win_rate_pct": round(r.implied_win_rate * 100, 1),
+            "actual_win_rate": round(r.actual_win_rate, 4),
+            "actual_win_rate_pct": round(r.actual_win_rate * 100, 1),
+            "samples": r.n,
+            "avg_return_pct": to_db_str(r.avg_return),
+            "gap_pct": round(r.gap * 100, 1),
+        }
+        for r in rows
+    ]
+    return ok({"by_confidence": data, "conclusions": conclusions})
+
+
+@router.get("/decision-categories", summary="决策类别聚合")
+def decision_categories(
+    start: date | None = Query(None),
+    end: date | None = Query(None),
+    session: Session = Depends(get_session),
+) -> dict:
+    """按论点类别(价值/趋势/事件/成长)统计胜率/平均回报/盈亏比。"""
+    from app.services.biases.decision_audit import category_aggregation
+
+    rows, conclusions = category_aggregation(session, start, end)
+    data = [
+        {
+            "category": r.key,
+            "samples": r.n,
+            "wins": r.wins,
+            "win_rate": round(r.win_rate, 4),
+            "win_rate_pct": round(r.win_rate * 100, 1),
+            "avg_return_pct": to_db_str(r.avg_return),
+            "profit_loss_ratio": r.profit_loss_ratio,
+        }
+        for r in rows
+    ]
+    return ok({"by_category": data, "conclusions": conclusions})
+
+
 def _serialize_period(r) -> dict:  # noqa: ANN001
     return {
         "period": r.period,

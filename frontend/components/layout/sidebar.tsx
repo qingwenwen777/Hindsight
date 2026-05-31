@@ -17,6 +17,7 @@ import {
   Settings,
   SlidersHorizontal,
   Star,
+  Target,
   TrendingUp,
   Wallet,
 } from "lucide-react";
@@ -56,6 +57,7 @@ const NAV_GROUPS: {
       { href: "/analytics/benchmark", labelKey: "nav.benchmark", icon: Scale },
       { href: "/analytics/exposure", labelKey: "nav.exposure", icon: PieChart },
       { href: "/analytics/emotion", labelKey: "nav.emotion", icon: Heart },
+      { href: "/analytics/decisions", labelKey: "nav.decisions", icon: Target },
       { href: "/reports", labelKey: "nav.reports", icon: CandlestickChart },
     ],
   },
