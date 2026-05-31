@@ -41,7 +41,7 @@ interface UiState {
 export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
-      theme: "dark",
+      theme: "light",
       colorScheme: "western",
       baseCurrency: "JPY",
       locale: "zh",

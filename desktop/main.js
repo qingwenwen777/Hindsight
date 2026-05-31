@@ -13,6 +13,7 @@
  */
 
 const { app, BrowserWindow, dialog, shell } = require("electron");
+const { autoUpdater } = require("electron-updater");
 const { spawn } = require("node:child_process");
 const http = require("node:http");
 const net = require("node:net");
@@ -134,6 +135,52 @@ function handleChildCrash(which) {
   app.quit();
 }
 
+/**
+ * 自动更新：从自有服务器（generic provider）检查更新。
+ * 发现新版本 -> 静默后台下载 -> 下载完成提示用户重启安装。
+ * 不强制，用户可稍后再说；失败只记日志，不打断使用。
+ */
+function setupAutoUpdater() {
+  if (isDev) return; // 开发期不检查
+
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = { info: logLine, warn: logLine, error: logLine, debug: () => {} };
+
+  autoUpdater.on("update-available", (info) => {
+    logLine(`发现新版本 ${info.version}，后台下载中`);
+  });
+  autoUpdater.on("update-not-available", () => {
+    logLine("已是最新版本");
+  });
+  autoUpdater.on("error", (err) => {
+    logLine(`更新检查失败：${err == null ? "unknown" : err.message || err}`);
+  });
+  autoUpdater.on("update-downloaded", async (info) => {
+    logLine(`新版本 ${info.version} 下载完成`);
+    if (!mainWindow) return;
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      buttons: ["立即重启更新", "稍后"],
+      defaultId: 0,
+      cancelId: 1,
+      title: "发现新版本",
+      message: `TradeAI ${info.version} 已下载完成`,
+      detail: "是否立即重启以完成更新？也可以稍后退出时自动安装。",
+    });
+    if (response === 0) {
+      shuttingDown = true;
+      cleanup();
+      autoUpdater.quitAndInstall();
+    }
+  });
+
+  // 启动后延迟检查，避开启动高峰
+  setTimeout(() => {
+    autoUpdater.checkForUpdates().catch((e) => logLine(`checkForUpdates 异常：${e}`));
+  }, 8000);
+}
+
 function killProc(proc) {
   if (!proc || proc.killed) return;
   try {
@@ -162,7 +209,7 @@ async function createWindow() {
     height: 900,
     minWidth: 1024,
     minHeight: 680,
-    backgroundColor: "#0a0a0b",
+    backgroundColor: "#ffffff",
     show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
@@ -202,6 +249,9 @@ async function createWindow() {
 
     logLine("前后端就绪，加载窗口");
     await mainWindow.loadURL(frontendUrl);
+
+    // 窗口就绪后再检查更新
+    setupAutoUpdater();
   } catch (e) {
     logLine(`启动失败：${e}`);
     dialog.showErrorBox("TradeAI 启动失败", String(e && e.message ? e.message : e));

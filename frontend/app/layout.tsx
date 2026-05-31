@@ -35,7 +35,7 @@ const themeInitScript = `
 (function () {
   try {
     var raw = localStorage.getItem('tradeai-ui');
-    var theme = 'dark', scheme = 'western';
+    var theme = 'light', scheme = 'western';
     if (raw) {
       var s = JSON.parse(raw).state || {};
       if (s.theme) theme = s.theme;
@@ -52,7 +52,7 @@ const themeInitScript = `
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="zh-CN" className="dark" data-color-scheme="western" suppressHydrationWarning>
+    <html lang="zh-CN" className="light" data-color-scheme="western" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

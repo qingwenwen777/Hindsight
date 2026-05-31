@@ -1,4 +1,4 @@
-"""生成桌面应用图标 build/icon.ico（深色底 + 蜡烛图，呼应 TradeAI 视觉）。
+"""生成桌面应用图标 build/icon.ico（浅色底 + 蜡烛图，呼应 TradeAI 亮色主题）。
 
 用 Pillow 直接绘制多分辨率图标，无需 SVG 渲染依赖。
 """
@@ -17,14 +17,16 @@ SIZE = 256
 img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
 d = ImageDraw.Draw(img)
 
-# 圆角深色底
+# 圆角浅色底（亮色主题）
 radius = 56
-d.rounded_rectangle([0, 0, SIZE - 1, SIZE - 1], radius=radius, fill=(20, 20, 23, 255))
+d.rounded_rectangle([0, 0, SIZE - 1, SIZE - 1], radius=radius, fill=(255, 255, 255, 255))
+# 极淡描边，避免白底在浅色任务栏上糊掉
+d.rounded_rectangle([1, 1, SIZE - 2, SIZE - 2], radius=radius - 1, outline=(226, 226, 229, 255), width=3)
 
 # 蜡烛图：三根 K 线（影线 + 实体），强调色与涨跌色
 accent = (41, 98, 255, 255)
-up = (42, 163, 142, 255)
-muted = (143, 143, 143, 255)
+up = (0, 137, 123, 255)
+muted = (107, 114, 128, 255)
 
 def candle(cx: int, wick_top: int, wick_bot: int, body_top: int, body_bot: int, color):
     half_w = 18

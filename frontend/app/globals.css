@@ -101,7 +101,7 @@
 
 @layer base {
   html {
-    color-scheme: dark;
+    color-scheme: light;
   }
   body {
     background-color: var(--bg-base);
@@ -131,20 +131,15 @@
   box-shadow: var(--shadow-card);
 }
 
-/* 自定义滚动条（深色克制风格） */
+/* 桌面 App：全局隐藏滚动条，保留滚动能力（更干净的原生应用观感）。 */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 4px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-tertiary);
+  width: 0;
+  height: 0;
+  display: none; /* Chrome / Safari / Edge */
 }
 
 /* 隐藏滚动条但保留滚动能力（侧栏等） */
