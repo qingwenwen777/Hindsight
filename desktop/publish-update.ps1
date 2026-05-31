@@ -13,7 +13,8 @@
 param(
     [string]$Server = "root@154.36.185.85",
     [string]$RemoteDir = "/opt/tradeai-updates/updates",
-    [string]$DistDir = "$PSScriptRoot\dist"
+    [string]$DistDir = "$PSScriptRoot\dist",
+    [int]$KeepVersions = 3
 )
 
 $ErrorActionPreference = "Stop"
@@ -38,5 +39,20 @@ Get-ChildItem "$DistDir\*.blockmap" -ErrorAction SilentlyContinue | ForEach-Obje
 
 Write-Host "==> uploading latest.yml"
 scp "$DistDir\latest.yml" "${Server}:$RemoteDir/"
+
+# Prune old versions: keep only the newest $KeepVersions installers (by mtime),
+# delete older .exe and their .blockmap. latest.yml is never touched.
+Write-Host "==> pruning old versions (keep $KeepVersions)"
+$prune = @"
+cd '$RemoteDir' || exit 0
+# newest-first list of installers; drop the first KEEP, delete the rest (+ blockmaps)
+ls -1t *.exe 2>/dev/null | tail -n +$($KeepVersions + 1) | while IFS= read -r f; do
+  rm -f -- "`$f" "`$f.blockmap"
+  echo "  removed `$f"
+done
+echo '--- remaining ---'
+ls -1t *.exe 2>/dev/null
+"@
+ssh $Server $prune
 
 Write-Host "==> done. Feed: http://154.36.185.85:8090/updates/"

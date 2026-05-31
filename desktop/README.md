@@ -90,7 +90,9 @@ npm start
 2. 重新打包：`./build.ps1`。
 3. 发布到服务器：`./publish-update.ps1`
    （上传 `*.exe` + `*.blockmap` + `latest.yml` 到 `/opt/tradeai-updates/updates/`，
-   latest.yml 最后上传，避免客户端读到指向尚未就绪文件的清单）。
+   latest.yml 最后上传，避免客户端读到指向尚未就绪文件的清单；
+   上传后自动清理旧版本，只保留最近 3 版，避免服务器空间堆积。
+   可用 `-KeepVersions N` 调整保留数量）。
 
 老版本客户端下次启动即会收到更新提示。
 
