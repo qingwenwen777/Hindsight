@@ -20,7 +20,8 @@ datas += [
 ]
 
 # 数据密集 / 隐式导入的第三方库，全量收集
-for pkg in ("akshare", "scipy", "pandas", "yfinance", "anthropic", "openai", "apscheduler"):
+# py_mini_racer 含原生 mini_racer.dll，akshare 部分数据源（sina 等）依赖它
+for pkg in ("akshare", "scipy", "pandas", "yfinance", "anthropic", "openai", "apscheduler", "py_mini_racer"):
     d, b, h = collect_all(pkg)
     datas += d
     binaries += b

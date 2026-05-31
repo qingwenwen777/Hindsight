@@ -3,7 +3,8 @@
  * 后端统一返回 { code, message, data, meta }。
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+import { getApiBase } from "@/lib/api/base";
+
 const API_PREFIX = "/api/v1";
 
 /** 统一响应壳 */
@@ -29,7 +30,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<ApiEnvelope<T>> {
-  const url = `${API_BASE}${API_PREFIX}${path}`;
+  const url = `${getApiBase()}${API_PREFIX}${path}`;
   const resp = await fetch(url, {
     ...options,
     headers: {

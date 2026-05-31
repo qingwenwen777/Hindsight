@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getApiBase } from "@/lib/api/base";
 import { api } from "@/lib/api/client";
 
 export interface AiUsage {
@@ -41,7 +42,6 @@ export function useAiChat() {
   });
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const API_PREFIX = "/api/v1";
 
 export interface ChatStreamHandlers {
@@ -68,7 +68,7 @@ export function streamAiChat(
   signal?: AbortSignal,
 ): Promise<void> {
   return (async () => {
-    const resp = await fetch(`${API_BASE}${API_PREFIX}/ai/chat/stream`, {
+    const resp = await fetch(`${getApiBase()}${API_PREFIX}/ai/chat/stream`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -254,7 +254,7 @@ export function streamConversationChat(
 ): Promise<void> {
   return (async () => {
     const resp = await fetch(
-      `${API_BASE}${API_PREFIX}/conversations/${conversationId}/chat/stream`,
+      `${getApiBase()}${API_PREFIX}/conversations/${conversationId}/chat/stream`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

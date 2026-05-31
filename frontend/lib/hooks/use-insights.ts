@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getApiBase } from "@/lib/api/base";
 import { api } from "@/lib/api/client";
 
 export interface InsightDocBrief {
@@ -51,8 +52,6 @@ export interface ReportJob {
   updated_at: string | null;
   finished_at: string | null;
 }
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 export function useInsightDocuments(type?: string, market?: string, page = 1, pageSize = 20) {
   const params = new URLSearchParams();
@@ -149,5 +148,5 @@ export function useSaveReportConfig() {
 
 /** 下载文档为 .md */
 export function downloadInsightDoc(id: number) {
-  window.open(`${API_BASE}/api/v1/insights/documents/${id}/download`, "_blank");
+  window.open(`${getApiBase()}/api/v1/insights/documents/${id}/download`, "_blank");
 }

@@ -1,0 +1,59 @@
+{
+  "name": "tradeai-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "TradeAI 桌面客户端（Windows）",
+  "author": "TradeAI",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "node scripts/prepare-resources.mjs && electron-builder --win --x64",
+    "prepare-resources": "node scripts/prepare-resources.mjs"
+  },
+  "devDependencies": {
+    "electron": "^31.3.1",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.tradeai.desktop",
+    "productName": "TradeAI",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/backend",
+        "to": "backend"
+      },
+      {
+        "from": "resources/frontend",
+        "to": "frontend"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "TradeAI"
+    }
+  }
+}

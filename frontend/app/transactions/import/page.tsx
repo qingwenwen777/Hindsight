@@ -4,9 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { getApiBase } from "@/lib/api/base";
 import { useT } from "@/lib/i18n/use-t";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface PreviewRow {
   symbol: string;
@@ -49,7 +48,7 @@ export default function ImportPage() {
     try {
       const fd = new FormData();
       fd.append("file", f);
-      const resp = await fetch(`${API_BASE}/api/v1/transactions/import/preview`, {
+      const resp = await fetch(`${getApiBase()}/api/v1/transactions/import/preview`, {
         method: "POST",
         body: fd,
       });
@@ -70,7 +69,7 @@ export default function ImportPage() {
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const resp = await fetch(`${API_BASE}/api/v1/transactions/import`, {
+      const resp = await fetch(`${getApiBase()}/api/v1/transactions/import`, {
         method: "POST",
         body: fd,
       });

@@ -22,6 +22,7 @@ htmlcov/
 # ===== 桌面打包产物 (PyInstaller / Electron) =====
 backend/build_desktop/
 backend/dist_desktop/
+desktop/resources/
 desktop/dist/
 desktop/out/
 desktop/node_modules/
