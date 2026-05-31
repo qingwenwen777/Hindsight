@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
+import { getApiBase } from "@/lib/api/base";
 import { api } from "@/lib/api/client";
 
 export interface SyncSettings {
@@ -72,4 +73,79 @@ export function useSyncedStocks(enabled = true) {
     queryFn: async () => (await api.get<SyncedStock[]>("/admin/synced-stocks")).data,
     enabled,
   });
+}
+
+export interface Diagnostics {
+  app: string;
+  db_path: string;
+  db_size_bytes: number;
+  scheduler_running: boolean;
+  counts: Record<string, number>;
+  last_sync_at: string | null;
+  generated_at: string;
+}
+
+/** 触发浏览器下载（桌面端 webview 同样有效）。 */
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/** 导出整库为 .db.gz 并触发下载（不走 JSON api 封装，直接取二进制）。 */
+export async function exportData(): Promise<void> {
+  const resp = await fetch(`${getApiBase()}/api/v1/admin/data/export`);
+  if (!resp.ok) throw new Error(`导出失败 (HTTP ${resp.status})`);
+  const blob = await resp.blob();
+  const cd = resp.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^"]+)"?/);
+  const filename = m ? m[1] : `hindsight_backup_${Date.now()}.db.gz`;
+  triggerDownload(blob, filename);
+}
+
+/** 上传备份文件覆盖导入。 */
+export async function importData(file: File): Promise<{ tables: string[] }> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const resp = await fetch(`${getApiBase()}/api/v1/admin/data/import`, {
+    method: "POST",
+    body: fd,
+  });
+  const body = await resp.json();
+  if (!resp.ok || body.code !== 0) {
+    throw new Error(body.message || `导入失败 (HTTP ${resp.status})`);
+  }
+  return body.data;
+}
+
+/** 导出诊断信息为文件：后端诊断 JSON + 桌面端日志（若可用）。 */
+export async function exportDiagnostics(): Promise<void> {
+  const data = (await api.get<Diagnostics>("/admin/diagnostics")).data;
+
+  // 桌面端：附带 desktop.log（含前后端 stdout）
+  let log = "";
+  const diagBridge = (window as unknown as {
+    tradeaiDiag?: { readLog: () => Promise<{ ok: boolean; content?: string }> };
+  }).tradeaiDiag;
+  if (diagBridge) {
+    try {
+      const res = await diagBridge.readLog();
+      if (res.ok && res.content) log = res.content;
+    } catch {
+      /* 读日志失败不阻断诊断导出 */
+    }
+  }
+
+  const text =
+    `# Hindsight 诊断信息\n生成时间: ${new Date().toISOString()}\n\n` +
+    `## 系统状态\n${JSON.stringify(data, null, 2)}\n\n` +
+    (log ? `## 运行日志 (最近)\n${log}\n` : "");
+
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  triggerDownload(blob, `hindsight_diagnostics_${Date.now()}.txt`);
 }

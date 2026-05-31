@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -8,7 +8,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LOCALES } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
-import { useSyncAll, useSyncedStocks, useSyncSettings, useUpdateSyncSettings } from "@/lib/hooks/use-sync";
+import {
+  exportData,
+  exportDiagnostics,
+  importData,
+  useSyncAll,
+  useSyncedStocks,
+  useSyncSettings,
+  useUpdateSyncSettings,
+} from "@/lib/hooks/use-sync";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -164,6 +172,9 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* 数据与备份 */}
+      <DataSection />
+
       <section>
         <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
           {t("settings.aiBackup")}
@@ -182,6 +193,130 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     <div className="flex items-center justify-between gap-3">
       <span className="shrink-0 text-small text-secondary">{label}</span>
       <div className="flex flex-wrap justify-end gap-2">{children}</div>
+    </div>
+  );
+}
+
+/** 数据与备份：导出/导入数据、导出诊断信息。 */
+function DataSection() {
+  const { t } = useT();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState<"export" | "import" | "diag" | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const onExport = async () => {
+    setMsg(null);
+    setBusy("export");
+    try {
+      await exportData();
+      setMsg({ ok: true, text: t("settings.exported") });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onPickImport = () => {
+    if (!window.confirm(t("settings.importConfirm"))) return;
+    fileRef.current?.click();
+  };
+
+  const onImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // 允许重复选同一文件
+    if (!file) return;
+    setMsg(null);
+    setBusy("import");
+    try {
+      const res = await importData(file);
+      setMsg({ ok: true, text: t("settings.imported", { tables: res.tables.length }) });
+    } catch (err) {
+      setMsg({ ok: false, text: t("settings.importFailed", { message: (err as Error).message }) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const onExportDiag = async () => {
+    setMsg(null);
+    setBusy("diag");
+    try {
+      await exportDiagnostics();
+      setMsg({ ok: true, text: t("settings.diagExported") });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section>
+      <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+        {t("settings.dataSection")}
+      </h2>
+      <div className="space-y-4 pt-4">
+        <DataRow
+          title={t("settings.export")}
+          desc={t("settings.exportDesc")}
+          action={
+            <Button variant="secondary" disabled={busy !== null} onClick={onExport}>
+              {busy === "export" ? t("settings.exporting") : t("settings.export")}
+            </Button>
+          }
+        />
+        <DataRow
+          title={t("settings.import")}
+          desc={t("settings.importDesc")}
+          action={
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".gz,.db"
+                className="hidden"
+                onChange={onImport}
+              />
+              <Button variant="outline" disabled={busy !== null} onClick={onPickImport}>
+                {busy === "import" ? t("settings.importing") : t("settings.import")}
+              </Button>
+            </>
+          }
+        />
+        <DataRow
+          title={t("settings.exportDiag")}
+          desc={t("settings.exportDiagDesc")}
+          action={
+            <Button variant="outline" disabled={busy !== null} onClick={onExportDiag}>
+              {t("settings.exportDiag")}
+            </Button>
+          }
+        />
+        {msg && (
+          <p className={cn("text-caption", msg.ok ? "text-up" : "text-down")}>{msg.text}</p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function DataRow({
+  title,
+  desc,
+  action,
+}: {
+  title: string;
+  desc: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 border-b border-border-subtle pb-4 last:border-b-0 last:pb-0">
+      <div className="min-w-0">
+        <div className="text-body font-medium text-primary">{title}</div>
+        <p className="mt-0.5 text-meta text-tertiary">{desc}</p>
+      </div>
+      <div className="shrink-0">{action}</div>
     </div>
   );
 }

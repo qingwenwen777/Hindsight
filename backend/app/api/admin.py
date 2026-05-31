@@ -1,11 +1,20 @@
-"""管理接口：行情同步触发与状态。"""
+"""管理接口：行情同步触发与状态、数据导出/导入、诊断信息。"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Query
+import gzip
+import shutil
+import sqlite3
+import tempfile
+from datetime import datetime
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.core.response import Meta, ok
 from app.database import engine, get_session
 from app.logging_config import get_logger
@@ -160,6 +169,164 @@ def synced_stocks(session: Session = Depends(get_session)) -> dict:
     # 有行情的在前（按最新日期倒序），无行情的在后
     out.sort(key=lambda r: (r["last_date"] is not None, r["last_date"] or ""), reverse=True)
     return ok(out, meta=Meta(total=len(out)))
+
+
+# ---- 数据导出 / 导入 ----
+
+
+def _db_file() -> Path:
+    """当前 SQLite 数据库文件路径。"""
+    raw = settings.database_url.split("sqlite:///", 1)[-1]
+    p = Path(raw)
+    return p if p.is_absolute() else (settings.data_dir / "stock.db")
+
+
+def _make_snapshot(dest_dir: Path) -> Path:
+    """用 SQLite 在线 .backup 生成一致性快照并 gzip 压缩，返回 .db.gz 路径。
+
+    WAL 模式下不能直接复制 .db 文件，必须用 backup API 拿一致快照。
+    """
+    db = _db_file()
+    if not db.exists():
+        raise HTTPException(status_code=404, detail="数据库文件不存在")
+
+    snapshot = dest_dir / "snapshot.db"
+    src = sqlite3.connect(str(db))
+    dst = sqlite3.connect(str(snapshot))
+    try:
+        with dst:
+            src.backup(dst)
+    finally:
+        src.close()
+        dst.close()
+
+    gz = dest_dir / "export.db.gz"
+    with open(snapshot, "rb") as f_in, gzip.open(gz, "wb") as f_out:
+        shutil.copyfileobj(f_in, f_out)
+    snapshot.unlink(missing_ok=True)
+    return gz
+
+
+@router.get("/data/export", summary="导出全部数据（SQLite 快照）")
+def export_data() -> FileResponse:
+    """导出整库为 gzip 压缩的一致性快照，供用户备份到本地/网盘。"""
+    tmp_dir = Path(tempfile.mkdtemp(prefix="tradeai_export_"))
+    gz = _make_snapshot(tmp_dir)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"hindsight_backup_{ts}.db.gz"
+    log.info("admin.data_export", size=gz.stat().st_size)
+    return FileResponse(
+        path=str(gz),
+        media_type="application/gzip",
+        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/data/import", summary="导入数据（覆盖当前库，先自动备份）")
+async def import_data(file: UploadFile = File(...)) -> dict:
+    """用上传的备份文件覆盖当前数据库。
+
+    安全措施：
+    1. 先校验上传文件是合法 SQLite（含本应用关键表），不合法直接拒绝。
+    2. 覆盖前把现有库另存为 .pre-import 备份，失败可回滚。
+    3. 释放连接池后再替换文件，避免句柄占用。
+    """
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=422, detail="上传文件为空")
+
+    # 解压（支持 .db.gz 或裸 .db）
+    data = raw
+    if file.filename and file.filename.endswith(".gz"):
+        try:
+            data = gzip.decompress(raw)
+        except OSError as e:
+            raise HTTPException(status_code=422, detail=f"gzip 解压失败：{e}") from e
+    elif raw[:2] == b"\x1f\x8b":  # gzip magic
+        try:
+            data = gzip.decompress(raw)
+        except OSError:
+            data = raw
+
+    # 写到临时文件并校验是合法 SQLite + 含关键表
+    tmp_dir = Path(tempfile.mkdtemp(prefix="tradeai_import_"))
+    candidate = tmp_dir / "candidate.db"
+    candidate.write_bytes(data)
+    try:
+        con = sqlite3.connect(str(candidate))
+        try:
+            names = {
+                r[0]
+                for r in con.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+        finally:
+            con.close()
+    except sqlite3.DatabaseError as e:
+        raise HTTPException(status_code=422, detail=f"不是有效的数据库文件：{e}") from e
+
+    required = {"stocks", "transactions", "journals"}
+    if not required.issubset(names):
+        missing = required - names
+        raise HTTPException(
+            status_code=422,
+            detail=f"备份文件缺少关键表：{', '.join(sorted(missing))}，可能不是本应用的备份",
+        )
+
+    db = _db_file()
+    db.parent.mkdir(parents=True, exist_ok=True)
+
+    # 释放连接池，确保无句柄占用
+    engine.dispose()
+
+    # 覆盖前备份现有库（含 wal/shm 一并清理，避免与新库不一致）
+    if db.exists():
+        backup = db.with_suffix(db.suffix + ".pre-import")
+        shutil.copy2(db, backup)
+    for ext in ("-wal", "-shm"):
+        side = Path(str(db) + ext)
+        if side.exists():
+            side.unlink()
+
+    shutil.copy2(candidate, db)
+    log.info("admin.data_import", size=len(data), tables=len(names))
+    return ok({"ok": True, "tables": sorted(names)})
+
+
+# ---- 诊断信息 ----
+
+
+@router.get("/diagnostics", summary="诊断信息汇总")
+def diagnostics(session: Session = Depends(get_session)) -> dict:
+    """汇总诊断信息：版本、数据库大小、各表行数、同步状态。用于排障。"""
+    from app.models.stock import Price, Stock
+    from app.models.transaction import Transaction
+    from sqlalchemy import func
+
+    db = _db_file()
+    db_size = db.stat().st_size if db.exists() else 0
+
+    counts = {
+        "stocks": session.exec(select(func.count(Stock.id))).one(),
+        "transactions": session.exec(select(func.count(Transaction.id))).one(),
+        "prices": session.exec(select(func.count(Price.date))).one(),
+        "sync_logs": session.exec(select(func.count(SyncLog.id))).one(),
+    }
+
+    last = session.exec(select(SyncLog).order_by(SyncLog.created_at.desc()).limit(1)).first()
+    return ok(
+        {
+            "app": settings.app_name,
+            "db_path": str(db),
+            "db_size_bytes": db_size,
+            "scheduler_running": settings.enable_scheduler,
+            "counts": counts,
+            "last_sync_at": last.created_at.isoformat() if last and last.created_at else None,
+            "generated_at": datetime.now().isoformat(),
+        }
+    )
 
 
 def _scheduler_running() -> bool:

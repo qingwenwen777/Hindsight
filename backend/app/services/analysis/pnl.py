@@ -167,19 +167,53 @@ def _consume_fifo(lots: list[list[Decimal]], qty: Decimal) -> tuple[Decimal, Dec
     return consumed_qty, consumed_cost
 
 
-def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) -> Holding:  # noqa: ARG001
-    """计算单只股票的持仓与 FIFO 已实现盈亏。
+def _events_from_rows(
+    txs: list[Transaction], cas: list[CorporateAction]
+) -> list[_Event]:
+    """从已加载的交易/公司行动行构建归一化事件并排序（供批量计算复用）。"""
+    events: list[_Event] = []
+    seq = 0
+    for t in txs:
+        fees = (t.commission or ZERO) + (t.tax or ZERO) + (t.other_fees or ZERO)
+        events.append(
+            _Event(
+                when=t.trade_date,
+                kind=t.type.upper(),
+                quantity=D(t.quantity),
+                price=D(t.price),
+                fees=D(fees),
+                seq=seq,
+            )
+        )
+        seq += 1
+    for ca in cas:
+        kind = ca.action_type.upper()
+        if kind not in ("SPLIT", "BONUS"):
+            continue
+        events.append(
+            _Event(
+                when=ca.ex_date,
+                kind=kind,
+                ratio_num=D(ca.ratio_num) if ca.ratio_num else ZERO,
+                ratio_den=D(ca.ratio_den) if ca.ratio_den else ZERO,
+                seq=seq,
+            )
+        )
+        seq += 1
 
-    use_cache 参数已废弃（无进程内缓存），保留签名以兼容调用方。
-    每次都基于当前事务最新数据重新计算，多 worker 下不会脏读。
-    """
-    events = _load_events(session, stock_id)
+    def _priority(e: _Event) -> int:
+        return 0 if e.kind in ("BUY", "SELL") else 1
+
+    events.sort(key=lambda e: (e.when, _priority(e), e.seq))
+    return events
+
+
+def _compute_from_events(stock_id: int, events: list[_Event]) -> Holding:
+    """基于已排序事件计算持仓（_load_events 与批量路径共用的纯计算核心）。"""
     holding = Holding(stock_id=stock_id)
     lots = holding.lots
-
     for e in events:
         if e.kind == "BUY":
-            # 单股成本 = (数量*价 + 买入费) / 数量
             gross = e.quantity * e.price
             cost_per_share = (gross + e.fees) / e.quantity if e.quantity else ZERO
             lots.append([e.quantity, cost_per_share])
@@ -189,37 +223,35 @@ def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) 
         elif e.kind == "SELL":
             sell_qty = e.quantity
             consumed_qty, consumed_cost = _consume_fifo(lots, sell_qty)
-            # 超卖保护：卖出股数超过可用持仓时，只对实际持有的部分确认盈亏，
-            # 多卖部分记入 oversold_shares 供上层告警，绝不按零成本虚增盈亏，
-            # 也不让 shares 变负后被静默隐藏。
             if consumed_qty < sell_qty:
                 holding.oversold_shares += sell_qty - consumed_qty
                 sell_qty = consumed_qty
             if sell_qty > ZERO:
-                # 卖出收入按实际卖出股数计净额（费用按整笔计入，抵减收入）
                 proceeds = sell_qty * e.price - e.fees
                 holding.shares -= sell_qty
                 holding.cost_basis -= consumed_cost
                 holding.realized_pnl += proceeds - consumed_cost
             holding.total_sell_fees += e.fees
         elif e.kind in ("SPLIT", "BONUS"):
-            # ratio 必须是有效正比例；分母/分子为空或 0 视为脏数据，
-            # 跳过该公司行动但记录告警，避免静默吞掉拆股导致持仓口径错误。
-            if (
-                e.ratio_num
-                and e.ratio_den
-                and e.ratio_num > ZERO
-                and e.ratio_den > ZERO
-            ):
+            if e.ratio_num and e.ratio_den and e.ratio_num > ZERO and e.ratio_den > ZERO:
                 ratio = e.ratio_num / e.ratio_den
                 holding.shares *= ratio
                 for lot in lots:
-                    lot[0] *= ratio  # 股数乘
-                    lot[1] /= ratio  # 单股成本除（稀释）
-                # cost_basis 不变（乘除抵消），保持总成本
+                    lot[0] *= ratio
+                    lot[1] /= ratio
             else:
                 holding.invalid_actions += 1
     return holding
+
+
+def compute_holding(session: Session, stock_id: int, *, use_cache: bool = True) -> Holding:  # noqa: ARG001
+    """计算单只股票的持仓与 FIFO 已实现盈亏。
+
+    use_cache 参数已废弃（无进程内缓存），保留签名以兼容调用方。
+    每次都基于当前事务最新数据重新计算，多 worker 下不会脏读。
+    """
+    events = _load_events(session, stock_id)
+    return _compute_from_events(stock_id, events)
 
 
 @dataclass
@@ -246,21 +278,74 @@ def _latest_price(session: Session, stock_id: int) -> Decimal | None:
 
 
 def compute_all_holdings(session: Session) -> list[PortfolioHolding]:
-    """计算所有有交易记录的股票的持仓（仅保留 shares>0 的）。"""
-    stock_ids = set(session.exec(select(Transaction.stock_id)).all())
+    """计算所有有交易记录的股票的持仓（仅保留 shares>0 的）。
+
+    批量加载：一次性取出全部交易、公司行动、股票、最新收盘价，在内存按
+    stock_id 分组计算，避免逐股查询（消除 N+1，约 4N+1 → 4 次查询）。
+    """
+    from app.models.stock import Price
+
+    txs_all = list(session.exec(select(Transaction)).all())
+    if not txs_all:
+        return []
+
+    stock_ids = {t.stock_id for t in txs_all}
+
+    # 按 stock_id 分组交易
+    txs_by_stock: dict[int, list[Transaction]] = {}
+    for t in txs_all:
+        txs_by_stock.setdefault(t.stock_id, []).append(t)
+
+    # 一次性取相关公司行动并分组
+    cas_by_stock: dict[int, list[CorporateAction]] = {}
+    cas_all = session.exec(
+        select(CorporateAction).where(CorporateAction.stock_id.in_(stock_ids))  # type: ignore[attr-defined]
+    ).all()
+    for ca in cas_all:
+        cas_by_stock.setdefault(ca.stock_id, []).append(ca)
+
+    # 一次性取相关股票
+    stocks_by_id: dict[int, Stock] = {
+        s.id: s  # type: ignore[misc]
+        for s in session.exec(select(Stock).where(Stock.id.in_(stock_ids))).all()  # type: ignore[attr-defined]
+    }
+
+    # 一次性取每只股票的最新收盘价：按 (stock_id, date) 倒序，取每组首行
+    from sqlalchemy import func as _func
+
+    latest_dates = dict(
+        session.exec(
+            select(Price.stock_id, _func.max(Price.date))
+            .where(Price.stock_id.in_(stock_ids))  # type: ignore[attr-defined]
+            .group_by(Price.stock_id)
+        ).all()
+    )
+    last_price_by_stock: dict[int, Decimal] = {}
+    if latest_dates:
+        # 用 (stock_id, date) 元组集合一次性取出对应收盘价
+        rows = session.exec(
+            select(Price.stock_id, Price.date, Price.close).where(
+                Price.stock_id.in_(latest_dates.keys())  # type: ignore[attr-defined]
+            )
+        ).all()
+        for sid, d, close in rows:
+            if latest_dates.get(sid) == d and close is not None:
+                last_price_by_stock[sid] = D(close)
+
     result: list[PortfolioHolding] = []
     for sid in stock_ids:
-        holding = compute_holding(session, sid)
+        events = _events_from_rows(txs_by_stock.get(sid, []), cas_by_stock.get(sid, []))
+        holding = _compute_from_events(sid, events)
         if holding.shares <= ZERO:
             continue
-        stock = session.get(Stock, sid)
+        stock = stocks_by_id.get(sid)
         if stock is None:
             continue
         result.append(
             PortfolioHolding(
                 stock=stock,
                 holding=holding,
-                last_price=_latest_price(session, sid),
+                last_price=last_price_by_stock.get(sid),
             )
         )
     return result

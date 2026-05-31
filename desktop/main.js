@@ -217,6 +217,20 @@ function setupAutoUpdater() {
   }, 8000);
 }
 
+// 诊断日志：读取 desktop.log（含后端/前端 stdout）供前端导出
+ipcMain.handle("diag:readLog", () => {
+  try {
+    const logPath = path.join(app.getPath("userData"), "desktop.log");
+    if (!fs.existsSync(logPath)) return { ok: true, content: "" };
+    const content = fs.readFileSync(logPath, "utf-8");
+    // 只取最后 ~200KB，避免日志过大
+    const MAX = 200 * 1024;
+    return { ok: true, content: content.length > MAX ? content.slice(-MAX) : content };
+  } catch (e) {
+    return { ok: false, message: String(e && e.message ? e.message : e) };
+  }
+});
+
 function killProc(proc) {
   if (!proc || proc.killed) return;
   try {

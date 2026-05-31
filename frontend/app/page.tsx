@@ -20,6 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useEquityCurve } from "@/lib/hooks/use-analytics";
 import { useHoldings, useSummary } from "@/lib/hooks/use-portfolio";
 import { useReviewReminders } from "@/lib/hooks/use-reminders";
+import { useSyncSettings } from "@/lib/hooks/use-sync";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,30 @@ type Dir = "up" | "down" | "flat";
 
 const dirColor = (d: Dir) =>
   d === "up" ? "text-up" : d === "down" ? "text-down" : "text-primary";
+
+/** 数据新鲜度指示：展示上次行情同步时间，过期（>2天）时变警示色。 */
+function DataFreshness() {
+  const { t, locale } = useT();
+  const { data: sync } = useSyncSettings();
+
+  if (!sync) return null;
+  const last = sync.last_sync_at ? new Date(sync.last_sync_at) : null;
+  if (!last) {
+    return <span className="text-warn">· {t("dashboard.dataNever")}</span>;
+  }
+  const ageMs = Date.now() - last.getTime();
+  const stale = ageMs > 2 * 24 * 3600 * 1000; // 超过 2 天视为可能过期
+  const timeStr = last.toLocaleString(
+    locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US",
+    { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" },
+  );
+  return (
+    <span className={cn("inline-flex items-center gap-1", stale ? "text-warn" : "text-tertiary")}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", stale ? "bg-warn" : "bg-up")} />
+      {stale ? t("dashboard.dataStale", { time: timeStr }) : t("dashboard.dataAsOf", { time: timeStr })}
+    </span>
+  );
+}
 
 /** 主指标：大号等宽数字 + 大写标签，占据视觉重心。 */
 function HeroStat({
@@ -129,8 +154,9 @@ export default function DashboardPage() {
       <div className="flex items-end justify-between pb-5">
         <div>
           <h1 className="text-display text-primary">{t("dashboard.title")}</h1>
-          <div className="mt-1.5 text-meta text-tertiary">
-            {t("dashboard.subtitle", { currency: baseCurrency })}
+          <div className="mt-1.5 flex items-center gap-3 text-meta text-tertiary">
+            <span>{t("dashboard.subtitle", { currency: baseCurrency })}</span>
+            <DataFreshness />
           </div>
         </div>
         <Link href="/transactions/new">

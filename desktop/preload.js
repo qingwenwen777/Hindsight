@@ -45,3 +45,9 @@ contextBridge.exposeInMainWorld("tradeaiUpdater", {
     return () => updateListeners.get(event)?.delete(cb);
   },
 });
+
+// 诊断：读取桌面端日志
+contextBridge.exposeInMainWorld("tradeaiDiag", {
+  isDesktop: true,
+  readLog: () => ipcRenderer.invoke("diag:readLog"),
+});
