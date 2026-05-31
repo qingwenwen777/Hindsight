@@ -44,7 +44,8 @@ def _set_sqlite_pragma(dbapi_connection, connection_record) -> None:  # noqa: AN
     cursor.execute("PRAGMA journal_mode=WAL;")
     cursor.execute("PRAGMA foreign_keys=ON;")
     cursor.execute("PRAGMA synchronous=NORMAL;")
-    cursor.execute("PRAGMA busy_timeout=5000;")
+    # 桌面单机版可能出现前台请求与后台调度并发写，拉长忙等避免 "database is locked"
+    cursor.execute("PRAGMA busy_timeout=30000;")
     cursor.close()
 
 
