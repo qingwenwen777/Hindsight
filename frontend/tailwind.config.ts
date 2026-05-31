@@ -90,10 +90,6 @@ const config: Config = {
         "8": "32px",
       },
       keyframes: {
-        // 骨架屏微光：一道高光从左扫到右
-        shimmer: {
-          "100%": { transform: "translateX(100%)" },
-        },
         // 纯透明度淡入（reduced-motion 兜底用）
         "fade-in": {
           "0%": { opacity: "0" },
@@ -104,18 +100,18 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(4px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
-        // 数值更新闪色：背景闪一下对应涨跌色再淡出（用 color-mix 注入 alpha）
+        // 数值更新闪色：背景闪一下对应涨跌色再淡出
+        // （用 --flash-up/down 变量，已在 globals.css 做 rgba 兜底 + color-mix 覆盖）
         "flash-up": {
-          "0%": { backgroundColor: "color-mix(in srgb, var(--up) 22%, transparent)" },
+          "0%": { backgroundColor: "var(--flash-up)" },
           "100%": { backgroundColor: "transparent" },
         },
         "flash-down": {
-          "0%": { backgroundColor: "color-mix(in srgb, var(--down) 22%, transparent)" },
+          "0%": { backgroundColor: "var(--flash-down)" },
           "100%": { backgroundColor: "transparent" },
         },
       },
       animation: {
-        shimmer: "shimmer 1.6s ease-in-out infinite",
         "fade-in": "fade-in 200ms ease-out both",
         "fade-in-up": "fade-in-up 200ms ease-out both",
         "flash-up": "flash-up 440ms ease-out",

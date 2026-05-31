@@ -3,31 +3,32 @@
 @tailwind utilities;
 
 /*
- * Design Tokens —— 仿 Hindsight / TradingView 深色视觉系统。
- * 深色默认：纯黑画布 + #2b2b2b 浮层，克制低饱和，涨跌色只用于数字。
+ * Design Tokens —— 仿 Linear / Vercel / TradingView 深色视觉系统。
+ * 关键：用「分层深灰 + 极淡投影」建立纵深，而非纯黑靠边框硬分。
+ * 纯黑画布会让卡片与背景糊在一起、显得平且廉价；分层明度台阶才是高级感来源。
  * 涨跌色通过 [data-color-scheme] 在 asia / western 间交换。
  */
 
 :root,
 .dark {
-  /* 背景三层（纯黑画布，靠边框分层） */
-  --bg-base: #000000;
-  --bg-surface: #000000;
-  --bg-elevated: #2b2b2b;
-  /* 边框三级 */
-  --border-subtle: #111111;
-  --border-default: #2a2a2a;
-  --border-strong: #4a4a4a;
+  /* 背景三层：明度台阶 base < surface < elevated，靠明暗差建立图底关系 */
+  --bg-base: #0a0a0b; /* 画布：近黑但带一丝冷调，不再纯黑 */
+  --bg-surface: #141417; /* 卡片/面板：明显亮一档，自然浮起 */
+  --bg-elevated: #1e1e22; /* 浮层/表头/hover/弹窗 */
+  /* 边框三级（随明度递进，弱化“描边感”） */
+  --border-subtle: #1c1c20;
+  --border-default: #2a2a30;
+  --border-strong: #3d3d44;
   /* 文字四层 */
   --text-primary: #f2f2f2;
   --text-secondary: #d2d2d2;
   --text-tertiary: #8f8f8f;
   --text-muted: #8f8f8f;
-  /* 强调色（仅用于链接/选中/焦点环，不再用于按钮填充） */
+  /* 强调色（链接/选中/焦点环/导航 active 指示条——有目的地使用，建立产品身份） */
   --accent: #2962ff;
   --accent-hover: #1e53e5;
   --accent-foreground: #ffffff;
-  /* 主按钮：纯黑底上用近白填充（Linear/Vercel 风格），告别高饱和蓝 */
+  /* 主按钮：深底上近白填充（Linear/Vercel 风格），告别高饱和蓝 */
   --btn-primary-bg: #ededed;
   --btn-primary-bg-hover: #ffffff;
   --btn-primary-fg: #0a0a0a;
@@ -39,9 +40,16 @@
   --color-green: #2aa38e;
   --color-red: #f05b5b;
 
-  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  /* 卡片纵深：极淡投影建立层次 + 顶部内高光提亮边缘（深色克制风格） */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.03);
   /* 骨架屏微光高光色（深色用淡白扫光） */
   --skeleton-sheen: rgba(255, 255, 255, 0.06);
+  /* 数值闪色底（先给 rgba 兜底，再用 color-mix 覆盖以跟随涨跌色切换；
+   * 老浏览器不支持 color-mix 时优雅降级为兜底色，不报错） */
+  --flash-up: rgba(42, 163, 142, 0.22);
+  --flash-up: color-mix(in srgb, var(--up) 22%, transparent);
+  --flash-down: rgba(240, 91, 91, 0.22);
+  --flash-down: color-mix(in srgb, var(--down) 22%, transparent);
 }
 
 .light {
@@ -65,9 +73,13 @@
   --danger: #d8433e;
   --color-green: #00897b;
   --color-red: #d8433e;
-  --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   /* 浅色下骨架扫光用淡白 */
   --skeleton-sheen: rgba(255, 255, 255, 0.55);
+  --flash-up: rgba(0, 137, 123, 0.16);
+  --flash-up: color-mix(in srgb, var(--up) 16%, transparent);
+  --flash-down: rgba(216, 67, 62, 0.16);
+  --flash-down: color-mix(in srgb, var(--down) 16%, transparent);
 }
 
 /* 涨跌色语义映射：
@@ -166,6 +178,14 @@
     transparent 100%
   );
   animation: shimmer 1.6s ease-in-out infinite;
+}
+/* shimmer keyframe 直接定义在此，确保不被 Tailwind tree-shake 掉
+ * （.skeleton::after 在 CSS 内引用，Tailwind config 里的同名 keyframe 仅在
+ *  用到 animate-shimmer 工具类时才会输出，而我们没有用到该工具类）。 */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 /* 后台刷新指示：顶部一条极淡的进度光带，不打断阅读 */

@@ -129,13 +129,22 @@ export function Sidebar() {
                     href={item.href}
                     title={collapsed ? label : undefined}
                     className={cn(
-                      "flex h-9 items-center gap-3 rounded-md px-3 text-body font-medium transition-colors",
+                      "relative flex h-9 items-center gap-3 rounded-md px-3 text-body font-medium transition-colors",
                       active
                         ? "bg-elevated text-primary"
                         : "text-tertiary hover:bg-elevated hover:text-primary",
                       collapsed && "justify-center px-0",
                     )}
                   >
+                    {/* active 指示条：用强调色建立产品身份与定位感 */}
+                    {active && (
+                      <span
+                        className={cn(
+                          "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-accent",
+                          collapsed && "left-0.5",
+                        )}
+                      />
+                    )}
                     <span className="relative flex items-center">
                       <Icon className="h-[18px] w-[18px] shrink-0" />
                       {showDot && (
