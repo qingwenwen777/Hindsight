@@ -1,22 +1,53 @@
 "use client";
 
+import { useState } from "react";
+
 import { Button } from "@/components/ui/button";
 import { LOCALES } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
+import { useSyncAll, useSyncSettings, useUpdateSyncSettings } from "@/lib/hooks/use-sync";
+import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
-  const { t } = useT();
+  const { t, locale } = useT();
   const {
     theme,
     colorScheme,
     baseCurrency,
-    locale,
     setTheme,
     setColorScheme,
     setBaseCurrency,
     setLocale,
   } = useUiStore();
+
+  const { data: sync } = useSyncSettings();
+  const updateSync = useUpdateSyncSettings();
+  const syncAll = useSyncAll();
+  const [syncMsg, setSyncMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const runSyncNow = () => {
+    setSyncMsg(null);
+    syncAll.mutate(undefined, {
+      onSuccess: (r) => {
+        const base = t("settings.syncDone", {
+          stocks: r.stocks,
+          inserted: r.inserted,
+          updated: r.updated,
+        });
+        const text =
+          r.failed.length > 0
+            ? `${base} · ${t("settings.syncPartial", { failed: r.failed.length })}`
+            : base;
+        setSyncMsg({ ok: r.failed.length === 0, text });
+      },
+      onError: (e) => setSyncMsg({ ok: false, text: t("settings.syncFailed", { message: (e as Error).message }) }),
+    });
+  };
+
+  const lastSyncText = sync?.last_sync_at
+    ? new Date(sync.last_sync_at).toLocaleString(locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US")
+    : t("settings.lastSyncNever");
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -65,6 +96,64 @@ export default function SettingsPage() {
               </Button>
             ))}
           </Row>
+        </div>
+      </section>
+
+      {/* 行情同步 */}
+      <section>
+        <h2 className="border-b border-border-default pb-2 text-title font-medium text-primary">
+          {t("settings.marketSync")}
+        </h2>
+        <div className="space-y-4 pt-4">
+          {/* 每日自动更新开关 */}
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <div className="text-body font-medium text-primary">{t("settings.autoSync")}</div>
+              <p className="mt-0.5 text-meta text-tertiary">{t("settings.autoSyncDesc")}</p>
+              {sync && !sync.scheduler_running && (
+                <p className="mt-1 text-caption text-warn">{t("settings.schedulerOff")}</p>
+              )}
+            </div>
+            <button
+              role="switch"
+              aria-checked={sync?.auto_sync_enabled ?? false}
+              aria-label={t("settings.autoSync")}
+              disabled={!sync || updateSync.isPending}
+              onClick={() => updateSync.mutate(!sync?.auto_sync_enabled)}
+              className={cn(
+                "relative mt-1 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-150 disabled:opacity-50",
+                sync?.auto_sync_enabled ? "bg-accent" : "bg-border-strong",
+              )}
+            >
+              <span
+                className={cn(
+                  "inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-150",
+                  sync?.auto_sync_enabled ? "translate-x-[22px]" : "translate-x-0.5",
+                )}
+              />
+            </button>
+          </div>
+
+          {/* 一键更新 + 上次更新时间 */}
+          <div className="flex items-center justify-between gap-4 border-t border-border-subtle pt-4">
+            <div className="min-w-0">
+              <div className="text-meta text-tertiary">
+                {t("settings.lastSync")}：<span className="tnum text-secondary">{lastSyncText}</span>
+              </div>
+              {syncMsg && (
+                <p className={cn("mt-1 text-caption", syncMsg.ok ? "text-up" : "text-down")}>
+                  {syncMsg.text}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="secondary"
+              disabled={syncAll.isPending}
+              onClick={runSyncNow}
+            >
+              {syncAll.isPending ? t("settings.syncing") : t("settings.syncNow")}
+            </Button>
+          </div>
         </div>
       </section>
 

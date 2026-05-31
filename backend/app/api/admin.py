@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.core.response import Meta, ok
 from app.database import engine, get_session
 from app.logging_config import get_logger
 from app.models.sync_log import SyncLog
-from app.services.data_sync.sync_service import sync_market_prices
+from app.services.data_sync.sync_service import sync_all_prices, sync_market_prices
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 log = get_logger(__name__)
@@ -69,6 +70,65 @@ def sync_prices(
             ],
         }
     )
+
+
+@router.get("/sync/settings", summary="读取行情同步设置")
+def get_sync_settings(session: Session = Depends(get_session)) -> dict:
+    """读取"每日自动更新"开关及各市场最近同步时间。"""
+    from app.services.data_sync.settings import get_or_create_sync_setting
+
+    setting = get_or_create_sync_setting(session)
+
+    # 附带最近一次任意同步的时间（用于"上次更新"展示）
+    last = session.exec(select(SyncLog).order_by(SyncLog.created_at.desc()).limit(1)).first()
+    return ok(
+        {
+            "auto_sync_enabled": setting.auto_sync_enabled,
+            "scheduler_running": _scheduler_running(),
+            "last_sync_at": last.created_at.isoformat() if last and last.created_at else None,
+        }
+    )
+
+
+class SyncSettingsPayload(BaseModel):
+    """同步设置更新载荷。"""
+
+    auto_sync_enabled: bool
+
+
+@router.put("/sync/settings", summary="更新行情同步设置")
+def update_sync_settings(
+    payload: SyncSettingsPayload, session: Session = Depends(get_session)
+) -> dict:
+    """开/关"每日自动更新已录入股票行情"。"""
+    from app.models.base import utcnow
+    from app.services.data_sync.settings import get_or_create_sync_setting
+
+    setting = get_or_create_sync_setting(session)
+    setting.auto_sync_enabled = payload.auto_sync_enabled
+    setting.updated_at = utcnow()
+    session.add(setting)
+    session.commit()
+    session.refresh(setting)
+    log.info("admin.sync_settings_updated", auto_sync_enabled=setting.auto_sync_enabled)
+    return ok({"auto_sync_enabled": setting.auto_sync_enabled})
+
+
+@router.post("/sync/all", summary="立即同步所有已录入股票")
+def sync_all(
+    full: bool = Query(False, description="是否全量重拉"),
+    session: Session = Depends(get_session),
+) -> dict:
+    """一键同步所有已录入股票的行情（手动触发，不受自动开关影响）。"""
+    summary = sync_all_prices(session, full=full)
+    return ok(summary)
+
+
+def _scheduler_running() -> bool:
+    """调度器是否已启用（环境变量 ENABLE_SCHEDULER）。"""
+    from app.config import settings
+
+    return settings.enable_scheduler
 
 
 @router.get("/sync/logs", summary="同步日志")

@@ -33,9 +33,18 @@ _SCHEDULE = {
 
 
 def _run_market_sync(market: str) -> None:
-    """调度任务：同步某市场，并在同步后评估价格提醒。"""
-    log.info("scheduler.sync_start", market=market)
+    """调度任务：同步某市场，并在同步后评估价格提醒。
+
+    每次运行前读取同步设置，关闭自动同步时跳过（仍可手动一键更新）。
+    """
     with Session(engine) as session:
+        from app.services.data_sync.settings import get_or_create_sync_setting
+
+        if not get_or_create_sync_setting(session).auto_sync_enabled:
+            log.info("scheduler.sync_skipped", market=market, reason="auto_sync_disabled")
+            return
+
+        log.info("scheduler.sync_start", market=market)
         report = sync_market_prices(session, market)
         # 同步后评估价格提醒
         try:

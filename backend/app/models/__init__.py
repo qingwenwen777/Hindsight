@@ -16,6 +16,7 @@ from app.models.journal import Journal, Review
 from app.models.report_job import ReportJob
 from app.models.stock import Price, Stock
 from app.models.sync_log import SyncLog
+from app.models.sync_setting import SyncSetting
 from app.models.transaction import Transaction
 from app.models.watchlist import Watchlist
 
@@ -28,6 +29,7 @@ __all__ = [
     "Review",
     "FeeRule",
     "SyncLog",
+    "SyncSetting",
     "FxRate",
     "CashAccount",
     "CashFlow",

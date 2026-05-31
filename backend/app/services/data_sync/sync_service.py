@@ -218,3 +218,44 @@ def sync_market_prices(session: Session, market: str, *, full: bool = False) -> 
             failed=[r.symbol for r in report.failed],
         )
     return report
+
+
+def sync_all_prices(session: Session, *, full: bool = False) -> dict:
+    """同步所有已录入股票的行情（不分市场，一次拉全部）。
+
+    用于"立即更新"一键同步。按市场分组逐只同步，返回汇总。
+    """
+    stocks = list(session.exec(select(Stock)).all())
+    total_inserted = total_updated = 0
+    failed: list[dict[str, str]] = []
+    by_market: dict[str, int] = {}
+    for stock in stocks:
+        res = sync_stock_prices(session, stock, full=full)
+        total_inserted += res.inserted
+        total_updated += res.updated
+        by_market[stock.market] = by_market.get(stock.market, 0) + 1
+        if not res.ok:
+            failed.append({"symbol": res.symbol, "message": res.message})
+
+    # 同步后评估价格提醒（与调度任务一致）
+    try:
+        from app.services.insights.price_alerts import evaluate_price_alerts
+
+        evaluate_price_alerts(session)
+    except Exception as e:  # noqa: BLE001
+        log.warning("sync.price_alerts_failed", error=str(e))
+
+    log.info(
+        "sync.all_done",
+        stocks=len(stocks),
+        inserted=total_inserted,
+        updated=total_updated,
+        failed=len(failed),
+    )
+    return {
+        "stocks": len(stocks),
+        "by_market": by_market,
+        "inserted": total_inserted,
+        "updated": total_updated,
+        "failed": failed,
+    }
