@@ -1,36 +1,42 @@
-# 发布更新到自有服务器（electron-updater generic provider）
+# Publish a new release to the self-hosted update server (electron-updater generic provider).
 #
-# electron-builder 打包后会在 dist/ 生成：
-#   - TradeAI Setup <版本>.exe   安装包
-#   - latest.yml                 版本清单（electron-updater 据此判断有无更新）
-#   - *.exe.blockmap             增量下载用
+# After electron-builder, dist/ contains:
+#   - "TradeAI Setup <ver>.exe"   installer
+#   - latest.yml                  update manifest (electron-updater reads this)
+#   - *.exe.blockmap              differential download
 #
-# 本脚本把这三类文件上传到服务器的 /opt/tradeai-updates（对应 http://<host>:8080/updates/）。
+# This uploads them to <RemoteDir>/updates on the server, matching the feed URL
+# http://154.36.185.85:8090/updates/.
 #
-# 用法：./publish-update.ps1 -Server root@154.36.185.85
+# Usage:  ./publish-update.ps1
 
 param(
     [string]$Server = "root@154.36.185.85",
-    [string]$RemoteDir = "/opt/tradeai-updates",
+    [string]$RemoteDir = "/opt/tradeai-updates/updates",
     [string]$DistDir = "$PSScriptRoot\dist"
 )
 
 $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path "$DistDir\latest.yml")) {
-    Write-Error "未找到 $DistDir\latest.yml，请先运行打包（build.ps1）。"
+    Write-Error "latest.yml not found in $DistDir. Run the build first."
 }
 
-Write-Host "==> 确保服务器目录存在：$RemoteDir"
+Write-Host "==> ensuring remote dir: $RemoteDir"
 ssh $Server "mkdir -p $RemoteDir"
 
-Write-Host "==> 上传安装包与清单"
-# latest.yml 必须最后上传，确保客户端读到时对应的 exe 已就绪
+# Upload installer + blockmap first, latest.yml last (so clients never see a
+# manifest pointing at a not-yet-uploaded file).
 $exe = Get-ChildItem "$DistDir\*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Write-Host "==> uploading $($exe.Name)"
 scp $exe.FullName "${Server}:$RemoteDir/"
+
 Get-ChildItem "$DistDir\*.blockmap" -ErrorAction SilentlyContinue | ForEach-Object {
+    Write-Host "==> uploading $($_.Name)"
     scp $_.FullName "${Server}:$RemoteDir/"
 }
+
+Write-Host "==> uploading latest.yml"
 scp "$DistDir\latest.yml" "${Server}:$RemoteDir/"
 
-Write-Host "==> 完成。更新源：http://154.36.185.85:8090/updates/" -ForegroundColor Green
+Write-Host "==> done. Feed: http://154.36.185.85:8090/updates/"
