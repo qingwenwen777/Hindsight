@@ -76,7 +76,13 @@ npm start
 应用启动后会向自有服务器检查更新（generic provider）：
 - 更新源：`http://154.36.185.85:8090/updates/`
 - 服务器侧：`/opt/tradeai-updates/updates/` 由一个 nginx 容器（`tradeai-updates`，端口 8090）静态托管。
-- 流程：启动 8 秒后检查 → 有新版静默后台下载 → 下载完成弹窗提示「立即重启更新 / 稍后」；选稍后则退出时自动安装。
+- 交互（自定义 UI，非系统弹窗）：
+  1. 启动后检查更新 → 发现新版本 → 应用内弹出自定义弹窗询问是否更新。
+  2. 点「下载更新」→ 实时进度条；下载期间可继续使用。
+  3. 下载完成 → 弹「立即重启安装」。
+  4. 点「暂不」→ 左上角品牌名旁出现更新标识，点击可再次打开弹窗。
+- 实现：更新逻辑在 Electron 主进程，通过 IPC（preload 的 `window.tradeaiUpdater`）与前端通信，
+  前端用 zustand store（`lib/hooks/use-updater.ts`）驱动弹窗与标识。
 
 ### 发布新版本
 
