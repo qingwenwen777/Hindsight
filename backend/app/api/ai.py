@@ -1,4 +1,4 @@
-"""AI 分析 API：analyze / insights / budget。"""
+"""AI 分析 API：analyze / insights / usage。"""
 
 from __future__ import annotations
 
@@ -10,13 +10,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.core.money import to_db_str
 from app.core.response import Meta, ok
 from app.database import get_session
 from app.models.ai_insight import AiInsight
 from app.services.ai import client as ai_client
 from app.services.ai import context_builder, prompts
-from app.services.ai.budget import BudgetExceeded, BudgetGuard
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
@@ -71,18 +71,15 @@ def analyze(payload: AnalyzeRequest, session: Session = Depends(get_session)) ->
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
-    try:
-        result = ai_client.analyze(
-            session,
-            prompt_type=ptype,
-            system_prompt=prompts.SYSTEM_BASE,
-            user_content=user_content,
-            target_type=target_type,
-            target_id=target_id,
-            max_tokens=1024,
-        )
-    except BudgetExceeded as e:
-        raise HTTPException(status_code=429, detail=str(e)) from e
+    result = ai_client.analyze(
+        session,
+        prompt_type=ptype,
+        system_prompt=prompts.SYSTEM_BASE,
+        user_content=user_content,
+        target_type=target_type,
+        target_id=target_id,
+        max_tokens=settings.ai_analysis_max_tokens,
+    )
 
     return ok(
         {
@@ -128,17 +125,14 @@ def list_insights(
     return ok(data, meta=Meta(total=len(data)))
 
 
-@router.get("/budget", summary="AI 预算用量")
-def get_budget(session: Session = Depends(get_session)) -> dict:
-    guard = BudgetGuard(session)
-    prompt_tokens, completion_tokens, calls = guard.tokens_this_month()
+@router.get("/usage", summary="AI 用量（本月 Token / 对话次数）")
+def get_usage(session: Session = Depends(get_session)) -> dict:
+    """返回本月 Token 用量与对话次数（仅统计展示，无预算限制）。"""
+    from app.services.ai.usage import tokens_this_month
+
+    prompt_tokens, completion_tokens, calls = tokens_this_month(session)
     return ok(
         {
-            "monthly_budget_jpy": to_db_str(guard.monthly_budget_jpy),
-            "used_jpy": to_db_str(guard.used_this_month()),
-            "remaining_jpy": to_db_str(guard.remaining()),
-            "usage_ratio": round(guard.usage_ratio(), 4),
-            "is_close": guard.is_close(),
             "available": ai_client.is_available(session),
             "prompt_tokens": prompt_tokens,
             "completion_tokens": completion_tokens,
@@ -157,20 +151,17 @@ def chat(payload: ChatRequest, session: Session = Depends(get_session)) -> dict:
         f"## 可引用的数据（数字由系统精确计算）\n{context}\n\n"
         f"## 用户问题\n{payload.message}"
     )
-    try:
-        result = ai_client.analyze(
-            session,
-            prompt_type="CHAT",
-            system_prompt=prompts.SYSTEM_BASE,
-            user_content=user_content,
-            target_type="PORTFOLIO",
-            target_id=None,
-            max_tokens=1500,
-            provider_id=payload.provider_id,
-            force_model=payload.model,
-        )
-    except BudgetExceeded as e:
-        raise HTTPException(status_code=429, detail=str(e)) from e
+    result = ai_client.analyze(
+        session,
+        prompt_type="CHAT",
+        system_prompt=prompts.SYSTEM_BASE,
+        user_content=user_content,
+        target_type="PORTFOLIO",
+        target_id=None,
+        max_tokens=settings.ai_chat_max_tokens,
+        provider_id=payload.provider_id,
+        force_model=payload.model,
+    )
 
     return ok(
         {
@@ -214,7 +205,7 @@ def chat_stream(payload: ChatRequest, session: Session = Depends(get_session)): 
                 user_content=user_content,
                 target_type="PORTFOLIO",
                 target_id=None,
-                max_tokens=1500,
+                max_tokens=settings.ai_chat_max_tokens,
                 provider_id=payload.provider_id,
                 force_model=payload.model,
             )
@@ -244,7 +235,7 @@ def chat_stream(payload: ChatRequest, session: Session = Depends(get_session)): 
                     )
                 elif ev.type == "error":
                     yield sse({"type": "error", "message": ev.message})
-        except BudgetExceeded as e:
+        except Exception as e:  # noqa: BLE001 — 任何异常都回传给前端
             yield sse({"type": "error", "message": str(e)})
 
     return StreamingResponse(
@@ -276,18 +267,15 @@ def quarterly_review(
     summary = context_builder.build_failure_pattern_context(session, start, end)
     user_content = prompts.render_failure_pattern(summary)
 
-    try:
-        result = ai_client.analyze(
-            session,
-            prompt_type="QUARTERLY_REVIEW",
-            system_prompt=prompts.SYSTEM_BASE,
-            user_content=user_content,
-            target_type="PORTFOLIO",
-            target_id=None,
-            max_tokens=1500,
-        )
-    except BudgetExceeded as e:
-        raise HTTPException(status_code=429, detail=str(e)) from e
+    result = ai_client.analyze(
+        session,
+        prompt_type="QUARTERLY_REVIEW",
+        system_prompt=prompts.SYSTEM_BASE,
+        user_content=user_content,
+        target_type="PORTFOLIO",
+        target_id=None,
+        max_tokens=settings.ai_analysis_max_tokens,
+    )
 
     # 支撑交易（该季度内的失败案例）
     all_failures = build_failure_library(session)

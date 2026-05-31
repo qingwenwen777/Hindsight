@@ -84,14 +84,14 @@ def test_trade_review_generates_and_caches(
     assert len(session.exec(select(AiInsight)).all()) == 1
 
 
-def test_budget_endpoint(client: TestClient) -> None:
-    """预算端点返回结构正确。"""
-    resp = client.get("/api/v1/ai/budget")
+def test_usage_endpoint(client: TestClient) -> None:
+    """用量端点返回结构正确（token 统计，无预算字段）。"""
+    resp = client.get("/api/v1/ai/usage")
     assert resp.status_code == 200
     d = resp.json()["data"]
-    assert "monthly_budget_jpy" in d
-    assert "used_jpy" in d
-    assert "usage_ratio" in d
+    assert "available" in d
+    assert "total_tokens" in d
+    assert "calls" in d
 
 
 def test_analyze_degraded_without_key(client: TestClient, session: Session, monkeypatch) -> None:  # noqa: ANN001

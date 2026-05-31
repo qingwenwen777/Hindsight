@@ -16,12 +16,12 @@ from sqlmodel import Session, select
 
 from app.core.money import D, to_db_str
 from app.core.response import Meta, ok
+from app.config import settings
 from app.database import engine, get_session
 from app.models.base import utcnow
 from app.models.conversation import Conversation, ConversationMessage
 from app.services.ai import client as ai_client
 from app.services.ai import context_builder, prompts
-from app.services.ai.budget import BudgetExceeded
 
 router = APIRouter(prefix="/conversations", tags=["conversations"])
 
@@ -232,7 +232,7 @@ def conversation_chat_stream(
                 user_content=user_content,
                 target_type="PORTFOLIO",
                 target_id=None,
-                max_tokens=1500,
+                max_tokens=settings.ai_chat_max_tokens,
                 history=history,
                 provider_id=payload.provider_id,
                 force_model=payload.model,
@@ -261,7 +261,7 @@ def conversation_chat_stream(
                 elif ev.type == "error":
                     had_error = True
                     yield sse({"type": "error", "message": ev.message})
-        except BudgetExceeded as e:
+        except Exception as e:  # noqa: BLE001 — 任何异常都回传给前端
             had_error = True
             yield sse({"type": "error", "message": str(e)})
         finally:

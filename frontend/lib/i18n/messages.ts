@@ -144,7 +144,7 @@ const zh: Dict = {
   "settings.baseCurrency": "基准币种",
   "settings.language": "界面语言",
   "settings.aiBackup": "AI 与备份",
-  "settings.aiBackupDesc1": "AI 月度预算、券商费率、备份口令等在后端 .env 配置。",
+  "settings.aiBackupDesc1": "券商费率、备份口令等在后端 .env 配置。",
   "settings.aiBackupDesc2": "AI 功能需配置 ANTHROPIC_API_KEY，缺失时相关功能优雅降级。",
 
   // 通用
@@ -272,7 +272,7 @@ const ja: Dict = {
   "settings.baseCurrency": "基準通貨",
   "settings.language": "表示言語",
   "settings.aiBackup": "AI とバックアップ",
-  "settings.aiBackupDesc1": "AI 月次予算・手数料率・バックアップパスワードはバックエンドの .env で設定します。",
+  "settings.aiBackupDesc1": "手数料率・バックアップパスワードはバックエンドの .env で設定します。",
   "settings.aiBackupDesc2": "AI 機能には ANTHROPIC_API_KEY が必要で、未設定時は機能が縮退します。",
 
   "common.loading": "読み込み中…",
@@ -399,7 +399,7 @@ const en: Dict = {
   "settings.baseCurrency": "Base currency",
   "settings.language": "Language",
   "settings.aiBackup": "AI & Backup",
-  "settings.aiBackupDesc1": "AI monthly budget, broker fees and backup password are set in the backend .env.",
+  "settings.aiBackupDesc1": "Broker fees and backup password are set in the backend .env.",
   "settings.aiBackupDesc2": "AI features need ANTHROPIC_API_KEY; they degrade gracefully when missing.",
 
   "common.loading": "Loading…",
@@ -1489,7 +1489,11 @@ const zh3: Dict = {
   "alerts.none": "暂无价格提醒",
   "alerts.threshold": "价位",
   "alerts.triggered": "现价",
+  "alerts.markAllRead": "全部已读",
+  "alerts.markRead": "标为已读",
+  "alerts.notifications": "通知",
   "reminders.title": "复盘提醒",
+  "reminders.dismiss": "忽略",
   "topbar.notifications": "通知",
 };
 
@@ -1603,7 +1607,11 @@ const ja3: Dict = {
   "alerts.none": "価格アラートはありません",
   "alerts.threshold": "価格",
   "alerts.triggered": "現在値",
+  "alerts.markAllRead": "すべて既読",
+  "alerts.markRead": "既読にする",
+  "alerts.notifications": "通知",
   "reminders.title": "レビュー通知",
+  "reminders.dismiss": "無視",
   "topbar.notifications": "通知",
 };
 
@@ -1715,7 +1723,11 @@ const en3: Dict = {
   "alerts.none": "No price alerts",
   "alerts.threshold": "Level",
   "alerts.triggered": "Price",
+  "alerts.markAllRead": "Mark all read",
+  "alerts.markRead": "Mark read",
+  "alerts.notifications": "Notifications",
   "reminders.title": "Review reminders",
+  "reminders.dismiss": "Dismiss",
   "topbar.notifications": "Notifications",
 };
 

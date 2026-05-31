@@ -40,6 +40,19 @@ def mark_read(alert_id: int, session: Session = Depends(get_session)) -> dict:
     return ok({"id": alert_id, "is_read": True})
 
 
+@router.post("/price/read-all", summary="全部标记价格提醒已读")
+def mark_all_read(session: Session = Depends(get_session)) -> dict:
+    """把所有未读价格提醒标记为已读，返回更新条数。"""
+    rows = session.exec(
+        select(PriceAlert).where(PriceAlert.is_read == False)  # noqa: E712
+    ).all()
+    for alert in rows:
+        alert.is_read = True
+        session.add(alert)
+    session.commit()
+    return ok({"updated": len(rows)})
+
+
 @router.post("/price/evaluate", summary="手动评估价格提醒")
 def evaluate(session: Session = Depends(get_session)) -> dict:
     new = evaluate_price_alerts(session)

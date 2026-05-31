@@ -6,13 +6,13 @@ from datetime import date
 
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.logging_config import get_logger
 from app.models.financials import Financial
 from app.models.insight import InsightDocument
 from app.models.stock import Price, Stock
 from app.services.ai import client as ai_client
 from app.services.ai import prompts
-from app.services.ai.budget import BudgetExceeded
 from app.services.screener.engine import ScreenHit
 
 log = get_logger(__name__)
@@ -94,11 +94,8 @@ def review_hits(
             user_content=user_prompt,
             target_type="PORTFOLIO",
             target_id=None,
-            max_tokens=2000,
+            max_tokens=settings.ai_analysis_max_tokens,
         )
-    except BudgetExceeded as e:
-        body = f"# {title}\n\n> （{e}，仅列出命中标的与数据）\n\n{context}{DISCLAIMER}"
-        return _save(session, title, body, symbols, degraded=True, reason=str(e))
     except Exception as e:  # noqa: BLE001
         log.warning("screener_review.ai_failed", error=str(e))
         body = f"# {title}\n\n> （AI 调用失败，仅列出命中标的与数据）\n\n{context}{DISCLAIMER}"

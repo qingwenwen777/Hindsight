@@ -42,11 +42,14 @@ class Settings(BaseSettings):
 
     # ---- AI ----
     anthropic_api_key: str | None = None
-    ai_monthly_budget_jpy: int = 2000
     # AI 服务端点与模型（可指向 Anthropic 官方或兼容端点如 DeepSeek 的 /anthropic）
     ai_base_url: str | None = None
     # 覆盖所有任务的模型名（如 DeepSeek 的 deepseek-chat）；为空则用内置分级表
     ai_model: str | None = None
+    # 对话回复最大 token 数（过小会把长回答截断）。可按服务商上限调整。
+    ai_chat_max_tokens: int = 4096
+    # 分析类（复盘/魔鬼代言人/失败模式）回复最大 token 数
+    ai_analysis_max_tokens: int = 2048
 
     # ---- 时区 ----
     display_timezone: str = "Asia/Tokyo"

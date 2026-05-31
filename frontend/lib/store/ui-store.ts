@@ -21,6 +21,9 @@ interface UiState {
   // AI 对话默认服务商/模型（全局默认，可在对话里临时切换）
   chatProviderId: number | null;
   chatModel: string | null;
+  // 已忽略的复盘提醒（key = `${journal_id}:${due_milestone}`），复盘提醒无后端已读态，
+  // 用本地持久化记录用户已读/忽略，避免铃铛一直显示。
+  dismissedReminders: string[];
   setTheme: (t: Theme) => void;
   toggleTheme: () => void;
   setColorScheme: (c: ColorScheme) => void;
@@ -28,6 +31,7 @@ interface UiState {
   setLocale: (l: Locale) => void;
   setSidebarCollapsed: (v: boolean) => void;
   setChatProvider: (providerId: number | null, model: string | null) => void;
+  dismissReminders: (keys: string[]) => void;
 }
 
 /**
@@ -44,6 +48,7 @@ export const useUiStore = create<UiState>()(
       sidebarCollapsed: false,
       chatProviderId: null,
       chatModel: null,
+      dismissedReminders: [],
       setTheme: (theme) => set({ theme }),
       toggleTheme: () => set((s) => ({ theme: s.theme === "dark" ? "light" : "dark" })),
       setColorScheme: (colorScheme) => set({ colorScheme }),
@@ -51,6 +56,11 @@ export const useUiStore = create<UiState>()(
       setLocale: (locale) => set({ locale }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       setChatProvider: (chatProviderId, chatModel) => set({ chatProviderId, chatModel }),
+      dismissReminders: (keys) =>
+        set((s) => ({
+          // 用 Set 去重，保留历史忽略项（再次到期的新里程碑 key 不同，会重新提醒）
+          dismissedReminders: Array.from(new Set([...s.dismissedReminders, ...keys])),
+        })),
     }),
     { name: "tradeai-ui" },
   ),

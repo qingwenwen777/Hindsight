@@ -32,3 +32,11 @@ export function useMarkAlertRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-alerts"] }),
   });
 }
+
+export function useMarkAllAlertsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post(`/alerts/price/read-all`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["price-alerts"] }),
+  });
+}

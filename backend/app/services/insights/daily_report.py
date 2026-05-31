@@ -7,12 +7,12 @@ from datetime import date
 
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.logging_config import get_logger
 from app.models.insight import InsightDocument, ReportConfig
 from app.services.ai import client as ai_client
 from app.services.ai import prompts
-from app.services.ai.budget import BudgetExceeded, BudgetGuard
-from app.services.ai.models import estimate_cost_jpy, model_for
+from app.services.ai.models import model_for
 from app.services.insights.context import build_report_context, render_context_md
 
 log = get_logger(__name__)
@@ -147,19 +147,7 @@ def build_daily_report(
         detail={"BRIEF": "简洁", "STANDARD": "适中", "DETAILED": "详细"}.get(config.detail_level, "适中"),
     )
 
-    guard = BudgetGuard(session)
-    est = estimate_cost_jpy(model, len(user_prompt) // 3 + 200, 1200)
-    if not guard.can_call(est):
-        report("SAVING", 90, "AI 月度预算不足，写入数据汇总版")
-        body = f"# {title}\n\n> （AI 月度预算不足，本篇为数据汇总版）\n\n{data_md}{DISCLAIMER}"
-        return _upsert(
-            session, market, on_date,
-            title=title, body_md=body, degraded=True,
-            degraded_reason="AI 月度预算不足",
-            source_ref={"config_id": config.id},
-        )
-
-    # 阶段 2：AI 叙述生成
+    # 阶段 2：AI 叙述生成（无预算限制）
     report("AI", 45, f"调用 AI（{model}）生成叙述")
     try:
         result = ai_client.analyze(
@@ -169,17 +157,9 @@ def build_daily_report(
             user_content=user_prompt,
             target_type="PORTFOLIO",
             target_id=None,
-            max_tokens=1500,
+            max_tokens=settings.ai_analysis_max_tokens,
             force_model=config.model_name,
             provider_id=config.provider_id,
-        )
-    except BudgetExceeded as e:
-        report("SAVING", 90, "AI 预算超限，写入数据汇总版")
-        body = f"# {title}\n\n> （{e}）\n\n{data_md}{DISCLAIMER}"
-        return _upsert(
-            session, market, on_date,
-            title=title, body_md=body, degraded=True,
-            degraded_reason=str(e), source_ref={"config_id": config.id},
         )
     except Exception as e:  # noqa: BLE001  AI 调用异常 → 降级
         log.warning("daily_report.ai_failed", market=market, error=str(e))

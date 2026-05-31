@@ -38,6 +38,8 @@ class LlmResult:
     model: str
     prompt_tokens: int
     completion_tokens: int
+    # 结束原因：normal / length（命中 max_tokens 截断）/ 其他
+    finish_reason: str | None = None
 
 
 class ProviderUnavailable(Exception):
@@ -183,6 +185,7 @@ def call(
             model=rp.model,
             prompt_tokens=msg.usage.input_tokens,
             completion_tokens=msg.usage.output_tokens,
+            finish_reason="length" if getattr(msg, "stop_reason", None) == "max_tokens" else "normal",
         )
     # openai 兼容
     client = _openai_client(rp)
@@ -199,6 +202,7 @@ def call(
         model=rp.model,
         prompt_tokens=getattr(usage, "prompt_tokens", 0) or 0,
         completion_tokens=getattr(usage, "completion_tokens", 0) or 0,
+        finish_reason=getattr(resp.choices[0], "finish_reason", None),
     )
 
 
@@ -227,6 +231,7 @@ def stream(
             model=rp.model,
             prompt_tokens=final.usage.input_tokens,
             completion_tokens=final.usage.output_tokens,
+            finish_reason="length" if getattr(final, "stop_reason", None) == "max_tokens" else "normal",
         )
         return
 
@@ -242,12 +247,16 @@ def stream(
     )
     prompt_tokens = 0
     completion_tokens = 0
+    finish_reason: str | None = None
     for chunk in stream_obj:
         if chunk.usage:
             prompt_tokens = chunk.usage.prompt_tokens or 0
             completion_tokens = chunk.usage.completion_tokens or 0
         if chunk.choices:
-            delta = chunk.choices[0].delta
+            choice = chunk.choices[0]
+            if getattr(choice, "finish_reason", None):
+                finish_reason = choice.finish_reason
+            delta = choice.delta
             piece = getattr(delta, "content", None)
             if piece:
                 yield piece, None
@@ -256,6 +265,7 @@ def stream(
         model=rp.model,
         prompt_tokens=prompt_tokens,
         completion_tokens=completion_tokens,
+        finish_reason=finish_reason,
     )
 
 

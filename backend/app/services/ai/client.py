@@ -22,7 +22,6 @@ from app.logging_config import get_logger
 from app.models.ai_insight import AiInsight
 from app.models.base import utcnow
 from app.services.ai import providers
-from app.services.ai.budget import BudgetExceeded, BudgetGuard
 from app.services.ai.models import MODEL_PRICING_USD, estimate_cost_jpy
 
 log = get_logger(__name__)
@@ -136,14 +135,7 @@ def analyze(
 
     priced = _is_priced(model)
 
-    # 2. 预算检查（仅对内置计价模型）
-    guard = BudgetGuard(session)
-    if priced:
-        est_prompt = len(user_content) // 3 + len(system_prompt) // 3
-        est_cost = estimate_cost_jpy(model, est_prompt, max_tokens)
-        guard.ensure(est_cost)  # 超限抛 BudgetExceeded
-
-    # 3. 调用
+    # 2. 调用（无预算限制；priced 仅用于是否记录成本）
     result = providers.call(
         rp,
         system_prompt=system_prompt,
@@ -170,9 +162,6 @@ def analyze(
     )
     session.add(insight)
     session.commit()
-
-    if priced and guard.is_close():
-        log.warning("ai.budget_close", ratio=round(guard.usage_ratio(), 2))
 
     return AiResult(
         response=text,
@@ -256,14 +245,6 @@ def analyze_stream(
 
     priced = _is_priced(model)
 
-    # 2. 预算检查（仅计价模型）
-    guard = BudgetGuard(session)
-    if priced:
-        hist_len = sum(len(m.get("content", "")) for m in history)
-        est_prompt = (len(user_content) + hist_len) // 3 + len(system_prompt) // 3
-        est_cost = estimate_cost_jpy(model, est_prompt, max_tokens)
-        guard.ensure(est_cost)  # 超限抛 BudgetExceeded
-
     yield StreamEvent(type="meta", model=model, cached=False, provider_id=rp.provider_id)
 
     # 拼接多轮历史 + 本轮问句
@@ -277,6 +258,7 @@ def analyze_stream(
     parts: list[str] = []
     prompt_tokens = 0
     completion_tokens = 0
+    finish_reason: str | None = None
     try:
         for delta, final in providers.stream(
             rp, system_prompt=system_prompt, messages=messages, max_tokens=max_tokens
@@ -284,6 +266,7 @@ def analyze_stream(
             if final is not None:
                 prompt_tokens = final.prompt_tokens
                 completion_tokens = final.completion_tokens
+                finish_reason = final.finish_reason
             elif delta:
                 parts.append(delta)
                 yield StreamEvent(type="delta", text=delta)
@@ -291,6 +274,12 @@ def analyze_stream(
         log.error("ai.stream_error", error=str(e), prompt_type=prompt_type)
         yield StreamEvent(type="error", model=model, message=str(e))
         return
+
+    # 命中 max_tokens 截断 → 追加提示，避免回答中途断掉却无说明
+    if finish_reason == "length":
+        notice = "\n\n> ⚠️ 回复达到长度上限被截断，可回复「继续」让我接着输出。"
+        parts.append(notice)
+        yield StreamEvent(type="delta", text=notice)
 
     # 末尾追加免责声明
     yield StreamEvent(type="delta", text=DISCLAIMER)
@@ -312,9 +301,6 @@ def analyze_stream(
     )
     session.add(insight)
     session.commit()
-
-    if priced and guard.is_close():
-        log.warning("ai.budget_close", ratio=round(guard.usage_ratio(), 2))
 
     yield StreamEvent(
         type="done",

@@ -4,12 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api/client";
 
-export interface AiBudget {
-  monthly_budget_jpy: string;
-  used_jpy: string;
-  remaining_jpy: string;
-  usage_ratio: number;
-  is_close: boolean;
+export interface AiUsage {
   available: boolean;
   prompt_tokens: number;
   completion_tokens: number;
@@ -32,10 +27,10 @@ export interface ContextRef {
   id: number;
 }
 
-export function useAiBudget() {
+export function useAiUsage() {
   return useQuery({
-    queryKey: ["ai-budget"],
-    queryFn: async () => (await api.get<AiBudget>("/ai/budget")).data,
+    queryKey: ["ai-usage"],
+    queryFn: async () => (await api.get<AiUsage>("/ai/usage")).data,
   });
 }
 

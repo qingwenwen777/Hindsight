@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent } from "@/components/ui/dialog";
 import {
   streamConversationChat,
-  useAiBudget,
+  useAiUsage,
   useConversation,
   useConversations,
   useCreateConversation,
@@ -39,7 +39,7 @@ function formatTokens(n: number): string {
 export default function AiChatPage() {
   const { t } = useT();
   const qc = useQueryClient();
-  const { data: budget } = useAiBudget();
+  const { data: usage } = useAiUsage();
   const { data: holdings } = useHoldings();
   const { data: conversations } = useConversations();
   const createConv = useCreateConversation();
@@ -259,7 +259,7 @@ export default function AiChatPage() {
       // 刷新会话列表（更新时间/标题）与当前会话缓存
       qc.invalidateQueries({ queryKey: ["conversations"] });
       if (convId != null) qc.invalidateQueries({ queryKey: ["conversation", convId] });
-      qc.invalidateQueries({ queryKey: ["ai-budget"] });
+      qc.invalidateQueries({ queryKey: ["ai-usage"] });
     }
   };
 
@@ -353,12 +353,12 @@ export default function AiChatPage() {
               model={chatModel}
               onChange={setChatProvider}
             />
-            {budget && (
+            {usage && (
               <div className="text-right">
                 <div className="text-caption text-tertiary">{t("ai.monthlyTokens")}</div>
                 <div className="tnum text-body text-secondary">
-                  {formatTokens(budget.total_tokens)}
-                  <span className="text-caption text-tertiary"> · {t("ai.calls", { n: budget.calls })}</span>
+                  {formatTokens(usage.total_tokens)}
+                  <span className="text-caption text-tertiary"> · {t("ai.calls", { n: usage.calls })}</span>
                 </div>
               </div>
             )}
