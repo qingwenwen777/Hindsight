@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * TradeAI 桌面客户端主进程。
+ * Hindsight 桌面客户端主进程。
  *
  * 启动流程：
  * 1. 选两个空闲端口（后端、前端）。
@@ -130,7 +130,7 @@ function startFrontend(port, apiBase) {
 
 function handleChildCrash(which) {
   if (shuttingDown) return;
-  dialog.showErrorBox("TradeAI", `${which}服务意外退出，应用将关闭。日志见用户数据目录 desktop.log。`);
+  dialog.showErrorBox("Hindsight", `${which}服务意外退出，应用将关闭。日志见用户数据目录 desktop.log。`);
   cleanup();
   app.quit();
 }
@@ -290,7 +290,7 @@ async function createWindow() {
     setupAutoUpdater();
   } catch (e) {
     logLine(`启动失败：${e}`);
-    dialog.showErrorBox("TradeAI 启动失败", String(e && e.message ? e.message : e));
+    dialog.showErrorBox("Hindsight 启动失败", String(e && e.message ? e.message : e));
     cleanup();
     app.quit();
   }
