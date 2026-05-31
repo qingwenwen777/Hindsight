@@ -156,13 +156,101 @@ def build_failure_pattern_context(
     return "\n".join(lines)
 
 
+def build_portfolio_overview(
+    session: Session, *, max_tx: int = 60, max_journals: int = 40
+) -> str:
+    """组装组合总览：当前持仓 + 最近交易记录 + 决策日志摘要。
+
+    作为对话的"默认上下文"，让 AI 教练始终能看到真实的交易历史与决策，
+    而不只是静态持仓快照。所有数字由代码精确计算/读取，AI 仅做定性。
+    """
+    from app.services.analysis import pnl as pnl_service
+
+    parts: list[str] = []
+
+    # —— 当前持仓（FIFO 口径）——
+    holdings = pnl_service.compute_all_holdings(session)
+    if holdings:
+        lines = ["## 当前持仓（FIFO 口径，数字由系统精确计算）"]
+        for ph in holdings:
+            h = ph.holding
+            mv = h.market_value(ph.last_price)
+            upnl = h.unrealized_pnl(ph.last_price)
+            ccy = ph.stock.currency
+            lines.append(
+                f"- {ph.stock.name}({ph.stock.symbol}) 持股 {h.shares} "
+                f"均价 {h.avg_cost:.4f} 成本 {h.cost_basis:.2f} {ccy}"
+                + (f" 现价 {ph.last_price}" if ph.last_price is not None else " 现价 数据不足")
+                + (f" 市值 {mv:.2f}" if mv is not None else "")
+                + (f" 浮盈 {upnl:+.2f}" if upnl is not None else "")
+                + f" 已实现 {h.realized_pnl:+.2f}"
+            )
+        parts.append("\n".join(lines))
+
+    # —— 最近交易记录 ——
+    txs = list(
+        session.exec(
+            select(Transaction).order_by(
+                Transaction.trade_date.desc(), Transaction.id.desc()
+            ).limit(max_tx)
+        ).all()
+    )
+    if txs:
+        lines = ["## 最近交易记录（倒序，数字精确）"]
+        for tx in txs:
+            stock = session.get(Stock, tx.stock_id)
+            sym = f"{stock.name}({stock.symbol})" if stock else f"stock#{tx.stock_id}"
+            journal = session.get(Journal, tx.journal_id) if tx.journal_id else None
+            extra = ""
+            if journal:
+                extra = (
+                    f"（日志#{journal.id} 情绪={journal.emotion or '—'} "
+                    f"信心={journal.confidence or '—'} 类型={journal.thesis_category or '—'}）"
+                )
+            fees = (tx.commission or D(0)) + (tx.tax or D(0)) + (tx.other_fees or D(0))
+            lines.append(
+                f"- {tx.trade_date} {tx.type} {sym} {tx.quantity}@{tx.price}{tx.currency} "
+                f"费用 {fees}{extra}"
+            )
+        parts.append("\n".join(lines))
+
+    # —— 决策日志摘要 ——
+    journals = list(
+        session.exec(
+            select(Journal).order_by(Journal.created_at.desc()).limit(max_journals)
+        ).all()
+    )
+    if journals:
+        lines = ["## 决策日志摘要（最近，用户当时所写）"]
+        for j in journals:
+            stock = session.get(Stock, j.stock_id)
+            sym = f"{stock.name}({stock.symbol})" if stock else f"stock#{j.stock_id}"
+            thesis = (j.thesis or "").strip().replace("\n", " ")
+            if len(thesis) > 120:
+                thesis = thesis[:120] + "…"
+            lines.append(
+                f"- 日志#{j.id} {sym} {j.decision_type} "
+                f"情绪={j.emotion or '—'} 信心={j.confidence or '—'} "
+                f"目标价={j.target_price or '—'} 止损={j.stop_loss_price or '—'} "
+                f"逻辑：{thesis}"
+            )
+        parts.append("\n".join(lines))
+
+    if not parts:
+        return "（用户当前没有持仓、交易或决策日志数据）"
+    return "\n\n".join(parts)
+
+
 def build_chat_context(session: Session, refs: list[tuple[str, int]]) -> str:
     """组装对话引用上下文（持仓/交易/日志）。
 
     refs: [(type, id)]，type ∈ {HOLDING, TRANSACTION, JOURNAL}。
-    持仓数字由 pnl 服务精确计算。
+    始终先附上组合总览（持仓 + 最近交易 + 日志），保证 AI 教练能看到真实交易历史；
+    再附上用户显式选中的条目作为"重点关注"。持仓数字由 pnl 服务精确计算。
     """
     from app.services.analysis import pnl as pnl_service
+
+    overview = build_portfolio_overview(session)
 
     parts: list[str] = []
     for rtype, rid in refs:
@@ -195,6 +283,8 @@ def build_chat_context(session: Session, refs: list[tuple[str, int]]) -> str:
                 f"[日志] journal#{j.id} {stock.symbol} {j.decision_type} "
                 f"情绪={j.emotion or '—'} 信心={j.confidence or '—'} 逻辑：{j.thesis}"
             )
-    if not parts:
-        return "（用户未选择具体上下文）"
-    return "\n".join(parts)
+
+    if parts:
+        focus = "## 用户重点关注（显式选中）\n" + "\n".join(parts)
+        return f"{overview}\n\n{focus}"
+    return overview

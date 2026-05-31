@@ -103,3 +103,29 @@ def test_analyze_degraded_without_key(client: TestClient, session: Session, monk
     resp = client.post("/api/v1/ai/analyze", json={"type": "TRADE_REVIEW", "target_id": tx_id})
     assert resp.status_code == 200
     assert resp.json()["data"]["degraded"] is True
+
+
+def test_chat_context_includes_transactions_and_journals(session: Session) -> None:
+    """AI 对话默认上下文应包含交易记录与决策日志（而非仅静态持仓）。"""
+    from app.services.ai import context_builder
+
+    _setup_trade(session)
+    # 不传任何显式引用，模拟用户直接提问
+    ctx = context_builder.build_chat_context(session, [])
+
+    assert "当前持仓" in ctx
+    assert "最近交易记录" in ctx
+    assert "决策日志摘要" in ctx
+    # 交易细节出现
+    assert "BUY" in ctx
+    assert "600519" in ctx
+    # 日志逻辑出现
+    assert "护城河深" in ctx
+
+
+def test_chat_context_overview_empty(session: Session) -> None:
+    """无任何数据时，返回明确的空提示而非交易内容。"""
+    from app.services.ai import context_builder
+
+    ctx = context_builder.build_chat_context(session, [])
+    assert "没有持仓" in ctx
