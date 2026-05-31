@@ -92,32 +92,45 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "hidden shrink-0 flex-col border-r border-border-subtle bg-surface card-shadow transition-[width] duration-200 md:flex",
-        collapsed ? "w-[56px]" : "w-[220px]",
+        "hidden shrink-0 flex-col border-r border-border-subtle bg-surface transition-[width] duration-200 md:flex",
+        collapsed ? "w-[56px]" : "w-[228px]",
       )}
     >
-      {/* 品牌 — 纯文字，不要蓝色方块 */}
-      <div className="flex h-[60px] items-center justify-between border-b border-border-subtle px-3">
+      {/* 品牌 — 衬线感字标，告别居中小字 */}
+      <div className="flex h-[60px] items-center justify-between border-b border-border-subtle px-4">
         {!collapsed && (
-          <span className="pl-2 text-title font-medium tracking-tight text-primary">
+          <span className="text-[19px] font-semibold leading-none tracking-[-0.02em] text-primary">
             {t("brand.name")}
           </span>
         )}
         {/* 手动折叠按钮 */}
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-tertiary hover:bg-elevated hover:text-primary"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-tertiary transition-colors hover:bg-elevated hover:text-primary"
           aria-label={collapsed ? t("sidebar.expand") : t("sidebar.collapse")}
         >
-          {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" strokeWidth={1.75} />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" strokeWidth={1.75} />
+          )}
         </button>
       </div>
 
-      <nav className="no-scrollbar flex-1 overflow-y-auto px-2 py-3">
-        {NAV_GROUPS.map((group) => (
-          <div key={group.titleKey} className="mb-4">
-            {!collapsed && <div className="px-3 pb-1.5 label-caps">{t(group.titleKey)}</div>}
-            <div className="grid gap-0.5">
+      <nav className="no-scrollbar flex-1 overflow-y-auto px-2.5 py-4">
+        {NAV_GROUPS.map((group, gi) => (
+          <div
+            key={group.titleKey}
+            className={cn(
+              gi > 0 && "mt-1.5 border-t border-border-subtle pt-3",
+            )}
+          >
+            {!collapsed && (
+              <div className="px-2.5 pb-1.5 pt-0.5 label-caps text-[10px] opacity-80">
+                {t(group.titleKey)}
+              </div>
+            )}
+            <div className="grid gap-px">
               {group.items.map((item) => {
                 const active = item.href === activeHref;
                 const Icon = item.icon;
@@ -129,10 +142,10 @@ export function Sidebar() {
                     href={item.href}
                     title={collapsed ? label : undefined}
                     className={cn(
-                      "relative flex h-9 items-center gap-3 rounded-md px-3 text-body font-medium transition-colors",
+                      "group relative flex h-9 items-center gap-3 rounded-md px-2.5 text-body transition-colors duration-150",
                       active
-                        ? "bg-elevated text-primary"
-                        : "text-tertiary hover:bg-elevated hover:text-primary",
+                        ? "bg-elevated font-medium text-primary"
+                        : "font-normal text-tertiary hover:bg-elevated/60 hover:text-secondary",
                       collapsed && "justify-center px-0",
                     )}
                   >
@@ -140,13 +153,19 @@ export function Sidebar() {
                     {active && (
                       <span
                         className={cn(
-                          "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-full bg-accent",
-                          collapsed && "left-0.5",
+                          "absolute left-0 top-1/2 h-4 w-[3px] -translate-y-1/2 rounded-r-full bg-accent",
+                          collapsed && "left-0",
                         )}
                       />
                     )}
                     <span className="relative flex items-center">
-                      <Icon className="h-[18px] w-[18px] shrink-0" />
+                      <Icon
+                        className={cn(
+                          "h-[18px] w-[18px] shrink-0 transition-colors",
+                          active ? "text-primary" : "text-tertiary group-hover:text-secondary",
+                        )}
+                        strokeWidth={active ? 2 : 1.75}
+                      />
                       {showDot && (
                         <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-accent" />
                       )}
