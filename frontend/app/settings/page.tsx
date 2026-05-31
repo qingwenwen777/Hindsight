@@ -3,10 +3,12 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { LOCALES } from "@/lib/i18n/messages";
 import { useT } from "@/lib/i18n/use-t";
 import { useUiStore } from "@/lib/store/ui-store";
-import { useSyncAll, useSyncSettings, useUpdateSyncSettings } from "@/lib/hooks/use-sync";
+import { useSyncAll, useSyncedStocks, useSyncSettings, useUpdateSyncSettings } from "@/lib/hooks/use-sync";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -154,6 +156,11 @@ export default function SettingsPage() {
               {syncAll.isPending ? t("settings.syncing") : t("settings.syncNow")}
             </Button>
           </div>
+
+          {/* 查看本地已拉取的股票 */}
+          <div className="border-t border-border-subtle pt-4">
+            <SyncedStocksDialog />
+          </div>
         </div>
       </section>
 
@@ -176,5 +183,84 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
       <span className="shrink-0 text-small text-secondary">{label}</span>
       <div className="flex flex-wrap justify-end gap-2">{children}</div>
     </div>
+  );
+}
+
+/** 本地已拉取股票弹窗：点击按钮打开，按需加载列表。 */
+function SyncedStocksDialog() {
+  const { t, locale } = useT();
+  const [open, setOpen] = useState(false);
+  const { data: stocks, isLoading } = useSyncedStocks(open);
+
+  const fmtDate = (d: string | null) => {
+    if (!d) return t("settings.stockNotSynced");
+    return new Date(d).toLocaleDateString(
+      locale === "zh" ? "zh-CN" : locale === "ja" ? "ja-JP" : "en-US",
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm">
+          {t("settings.viewStocks")}
+        </Button>
+      </DialogTrigger>
+      <DialogContent
+        title={t("settings.stocksTitle")}
+        description={t("settings.stocksSubtitle")}
+        className="max-w-xl"
+      >
+        <div className="max-h-[60vh] overflow-y-auto">
+          {isLoading ? (
+            <div className="space-y-2 py-2">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-9 w-full" />
+              ))}
+            </div>
+          ) : !stocks || stocks.length === 0 ? (
+            <p className="py-10 text-center text-small text-tertiary">
+              {t("settings.stocksEmpty")}
+            </p>
+          ) : (
+            <>
+              <div className="pb-2 text-caption text-tertiary">
+                {t("settings.stocksCount", { count: stocks.length })}
+              </div>
+              <table className="w-full text-small">
+                <thead>
+                  <tr className="border-y border-border-default label-caps">
+                    <th className="px-2 py-2 text-left font-normal">{t("settings.col.stock")}</th>
+                    <th className="px-2 py-2 text-right font-normal">{t("settings.col.bars")}</th>
+                    <th className="px-2 py-2 text-right font-normal">{t("settings.col.lastDate")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stocks.map((s) => (
+                    <tr key={s.stock_id} className="border-b border-border-subtle">
+                      <td className="px-2 py-2">
+                        <span className="text-primary">{s.name}</span>{" "}
+                        <span className="tnum text-tertiary">{s.symbol} · {s.market}</span>
+                      </td>
+                      <td className="tnum px-2 py-2 text-right text-secondary">
+                        {s.bars > 0 ? s.bars : "—"}
+                      </td>
+                      <td
+                        className={cn(
+                          "tnum px-2 py-2 text-right",
+                          s.last_date ? "text-secondary" : "text-tertiary",
+                        )}
+                      >
+                        {fmtDate(s.last_date)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

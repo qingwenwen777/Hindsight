@@ -21,6 +21,13 @@ export function useWatchlist() {
   return useQuery({
     queryKey: ["watchlist"],
     queryFn: async () => (await api.get<WatchItem[]>("/watchlist")).data,
+    // 新加入的股票行情在后台拉取，若有条目还没有价格则定时轮询，
+    // 直到后台同步写入价格后自动停止（让新股票的价格"自己冒出来"）。
+    refetchInterval: (query) => {
+      const data = query.state.data as WatchItem[] | undefined;
+      if (data && data.some((w) => w.last_price == null)) return 3000;
+      return false;
+    },
   });
 }
 

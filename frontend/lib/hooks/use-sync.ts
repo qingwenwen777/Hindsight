@@ -18,6 +18,17 @@ export interface SyncAllResult {
   failed: { symbol: string; message: string }[];
 }
 
+export interface SyncedStock {
+  stock_id: number;
+  symbol: string;
+  name: string;
+  market: string;
+  currency: string;
+  bars: number;
+  first_date: string | null;
+  last_date: string | null;
+}
+
 /** 读取行情同步设置（自动更新开关 + 上次同步时间 + 调度是否启用）。 */
 export function useSyncSettings() {
   return useQuery({
@@ -46,9 +57,19 @@ export function useSyncAll() {
     onSuccess: () => {
       // 同步后刷新行情相关查询与同步状态
       qc.invalidateQueries({ queryKey: ["sync-settings"] });
+      qc.invalidateQueries({ queryKey: ["synced-stocks"] });
       qc.invalidateQueries({ queryKey: ["holdings"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
       qc.invalidateQueries({ queryKey: ["watchlist"] });
     },
+  });
+}
+
+/** 本地已拉取的股票列表（含行情区间与最新更新日期）。enabled 控制按需加载（弹窗打开时）。 */
+export function useSyncedStocks(enabled = true) {
+  return useQuery({
+    queryKey: ["synced-stocks"],
+    queryFn: async () => (await api.get<SyncedStock[]>("/admin/synced-stocks")).data,
+    enabled,
   });
 }

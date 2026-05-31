@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Star, Trash2 } from "lucide-react";
+import { Loader2, Plus, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -27,6 +27,8 @@ export default function WatchlistPage() {
   const remove = useRemoveWatch();
   const createStock = useCreateStock();
   const [adding, setAdding] = useState<string | null>(null);
+  // 本地搜索结果直接关注时，记录正在关注的 stock_id（用于按钮 loading）
+  const [watching, setWatching] = useState<number | null>(null);
 
   const watchedIds = new Set((watch ?? []).map((w) => w.stock_id));
 
@@ -88,9 +90,21 @@ export default function WatchlistPage() {
                   <Button
                     size="sm"
                     variant="secondary"
-                    onClick={() => add.mutate({ stock_id: s.id })}
+                    disabled={watching === s.id}
+                    onClick={() => {
+                      setWatching(s.id);
+                      add.mutate(
+                        { stock_id: s.id },
+                        { onSettled: () => setWatching(null) },
+                      );
+                    }}
                   >
-                    <Star className="h-3.5 w-3.5" /> {t("watchlist.watch")}
+                    {watching === s.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Star className="h-3.5 w-3.5" />
+                    )}
+                    {t("watchlist.watch")}
                   </Button>
                 )}
               </div>
@@ -124,7 +138,11 @@ export default function WatchlistPage() {
                         disabled={adding === key}
                         onClick={() => addCandidate(c)}
                       >
-                        <Plus className="h-3.5 w-3.5" />
+                        {adding === key ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Plus className="h-3.5 w-3.5" />
+                        )}
                         {adding === key ? t("watchlist.adding") : t("watchlist.addAndSync")}
                       </Button>
                     </div>
@@ -178,7 +196,14 @@ export default function WatchlistPage() {
                 <div className="tnum text-caption text-tertiary">{w.symbol} · {w.market}</div>
               </Link>
               <div className="tnum text-right text-primary">
-                {w.last_price ? formatMoney(w.last_price, w.currency) : "—"}
+                {w.last_price ? (
+                  formatMoney(w.last_price, w.currency)
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-tertiary">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span className="text-caption">{t("watchlist.syncing")}</span>
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-1">
                 {(w.tags ?? []).map((t) => (

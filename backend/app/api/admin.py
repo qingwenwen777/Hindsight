@@ -124,6 +124,44 @@ def sync_all(
     return ok(summary)
 
 
+@router.get("/synced-stocks", summary="本地已拉取的股票及更新时间")
+def synced_stocks(session: Session = Depends(get_session)) -> dict:
+    """列出本地已登记的股票，附带行情区间与最新更新日期。
+
+    用于设置页"查看本地已拉取股票"。按最新行情日期倒序，
+    无行情的股票排在最后（视为尚未拉取/拉取失败）。
+    """
+    from app.models.stock import Price, Stock
+    from sqlalchemy import func
+
+    stocks = list(session.exec(select(Stock)).all())
+    out = []
+    for st in stocks:
+        agg = session.exec(
+            select(
+                func.max(Price.date),
+                func.min(Price.date),
+                func.count(Price.date),
+            ).where(Price.stock_id == st.id)
+        ).first()
+        last_date, first_date, bar_count = (agg or (None, None, 0))
+        out.append(
+            {
+                "stock_id": st.id,
+                "symbol": st.symbol,
+                "name": st.name,
+                "market": st.market,
+                "currency": st.currency,
+                "bars": int(bar_count or 0),
+                "first_date": first_date.isoformat() if first_date else None,
+                "last_date": last_date.isoformat() if last_date else None,
+            }
+        )
+    # 有行情的在前（按最新日期倒序），无行情的在后
+    out.sort(key=lambda r: (r["last_date"] is not None, r["last_date"] or ""), reverse=True)
+    return ok(out, meta=Meta(total=len(out)))
+
+
 def _scheduler_running() -> bool:
     """调度器是否已启用（环境变量 ENABLE_SCHEDULER）。"""
     from app.config import settings
